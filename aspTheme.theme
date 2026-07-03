@@ -150,6 +150,14 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
     }
   }
 
+  $variables['ood_software'] = [];
+  if ($node->hasField('field_rp_ood_software') && !$node->get('field_rp_ood_software')->isEmpty()) {
+    $decoded = json_decode($node->get('field_rp_ood_software')->value, TRUE);
+    if (is_array($decoded)) {
+      $variables['ood_software'] = $decoded;
+    }
+  }
+
   // Pre-load paragraph data to avoid $ref->entity NULL issues.
   $paragraph_storage = \Drupal::entityTypeManager()->getStorage('paragraph');
   $paragraph_fields = [
