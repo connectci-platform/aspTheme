@@ -296,6 +296,10 @@
                   {% set qname = paragraph.field_rp_queue_name.value|default('') %}
                   {% if qname %}
                   {% set qmetrics = queue_metrics[qname] ?? null %}
+                  {% set max_wall = paragraph.field_rp_max_wall_time.value %}
+                  {% set max_wall = max_wall is not empty ? max_wall|round(0, 'floor') : null %}
+                  {# Always render the max in hours to match the hour-based avg/range in the same cell. #}
+                  {% set max_wall_label = max_wall is not null ? max_wall ~ 'h' : null %}
                   <tr>
                     <td class="py-2 pr-4 font-semibold align-top">{{ qname }}</td>
                     <td class="py-2 pr-4 text-sm align-top">
@@ -367,12 +371,12 @@
                           <div class="inline-flex flex-col items-start">
                             <svg class="rp-sparkline" width="120" height="32" viewBox="0 0 120 32" role="img" focusable="false" aria-labelledby="wait-title-{{ loop.index }}">
                               <title id="wait-title-{{ loop.index }}">{{ qname }} wait time: average {{ avg|number_format(1) }} hours, range {{ spark_min|round(1) }} to {{ spark_max|round(1) }} hours over 30 days</title>
-                              <line x1="1" y1="{{ avg_y }}" x2="90" y2="{{ avg_y }}" stroke="#999" stroke-width="0.75" stroke-dasharray="3,2" />
+                              <line x1="1" y1="{{ avg_y }}" x2="112" y2="{{ avg_y }}" stroke="#999" stroke-width="0.75" stroke-dasharray="3,2" />
+                              {# Number below the chart (matches the Wall Time cell) so it never overlaps in the small SVG. #}
                               <polyline fill="none" stroke="#107180" stroke-width="1.5"
-                                points="{% for v in vals %}{{ (loop.index0 / (vals|length - 1) * 88 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
-                              <text x="93" y="{{ (avg_y + 4)|round(1) }}" font-size="11" fill="#666">{{ avg|number_format(1) }}</text>
+                                points="{% for v in vals %}{{ (loop.index0 / (vals|length - 1) * 110 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
                             </svg>
-                            <span class="text-xs text-dark-gray" aria-hidden="true">{{ spark_min|round(1) }}–{{ spark_max|round(1) }} hrs</span>
+                            <span class="text-xs text-dark-gray" aria-hidden="true">{{ spark_min|round(1) }}–{{ spark_max|round(1) }} hrs · avg {{ avg|number_format(1) }}</span>
                           </div>
                         {% else %}
                           <span>0</span>
@@ -398,23 +402,43 @@
                           {% set avg_y = avg_y < 2 ? 2 : (avg_y > 30 ? 30 : avg_y) %}
                           <div class="inline-flex flex-col items-start">
                             <svg class="rp-sparkline" width="120" height="32" viewBox="0 0 120 32" role="img" focusable="false" aria-labelledby="wall-title-{{ loop.index }}">
-                              <title id="wall-title-{{ loop.index }}">{{ qname }} wall time: average {{ avg|number_format(1) }} hours, range {{ spark_min|round(1) }} to {{ spark_max|round(1) }} hours over 30 days</title>
-                              <line x1="1" y1="{{ avg_y }}" x2="90" y2="{{ avg_y }}" stroke="#999" stroke-width="0.75" stroke-dasharray="3,2" />
+                              <title id="wall-title-{{ loop.index }}">{{ qname }} wall time: average {{ avg|number_format(1) }} hours, range {{ spark_min|round(1) }} to {{ spark_max|round(1) }} hours over 30 days{% if max_wall is not null %}, wall-time limit {{ max_wall_label }}{% endif %}</title>
+                              <line x1="1" y1="{{ avg_y }}" x2="112" y2="{{ avg_y }}" stroke="#999" stroke-width="0.75" stroke-dasharray="3,2" />
+                              {# Draw the max as a red ceiling line at its true position on the 0–spark_max scale.
+                                 When max ≤ spark_max the line sits inside the chart (and the trend may cross it —
+                                 e.g. the limit was lowered but the 30-day window still holds longer jobs). When the
+                                 max is modestly above the observed peak, clamp the line to the top. The value itself
+                                 renders as text below the chart (not next to the line) to avoid label overlap. #}
+                              {% if max_wall is not null and max_wall <= spark_max * 1.5 %}
+                                {% set max_y = (30 - (max_wall / spark_max * 28))|round(1) %}
+                                {% set max_y = max_y < 2 ? 2 : (max_y > 30 ? 30 : max_y) %}
+                                <line x1="1" y1="{{ max_y }}" x2="112" y2="{{ max_y }}" stroke="#c0392b" stroke-width="0.75" />
+                              {% endif %}
+                              {# Reference lines only in the chart; avg extends full-width now that its label moved below. #}
                               <polyline fill="none" stroke="#107180" stroke-width="1.5"
-                                points="{% for v in vals %}{{ (loop.index0 / (vals|length - 1) * 88 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
-                              <text x="93" y="{{ (avg_y + 4)|round(1) }}" font-size="11" fill="#666">{{ avg|number_format(1) }}</text>
+                                points="{% for v in vals %}{{ (loop.index0 / (vals|length - 1) * 110 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
                             </svg>
-                            <span class="text-xs text-dark-gray" aria-hidden="true">{{ spark_min|round(1) }}–{{ spark_max|round(1) }} hrs</span>
+                            {# All numbers render below the chart so nothing overlaps in the small SVG. #}
+                            <span class="text-xs text-dark-gray" aria-hidden="true">{{ spark_min|round(1) }}–{{ spark_max|round(1) }} hrs · avg {{ avg|number_format(1) }}{% if max_wall is not null %} · limit {{ max_wall_label }}{% endif %}</span>
                           </div>
                         {% else %}
                           <span>0</span>
                           <span class="sr-only">{{ qname }} wall time: 0 hours</span>
+                          {% if max_wall is not null %}
+                            <span class="text-xs" style="color:#c0392b" aria-hidden="true">max {{ max_wall_label }}</span>
+                          {% endif %}
                         {% endif %}
                       {% elseif qmetrics and qmetrics.wall_time is not null %}
                         {{ qmetrics.wall_time|number_format(1) }}
                         <span class="sr-only">hours</span>
+                        {% if max_wall is not null %}
+                          <span class="text-xs" style="color:#c0392b" aria-hidden="true"> · max {{ max_wall_label }}</span>
+                        {% endif %}
                       {% else %}
                         <span class="text-dark-gray" aria-label="No data">&mdash;</span>
+                        {% if max_wall is not null %}
+                          <span class="text-xs" style="color:#c0392b" aria-hidden="true">max {{ max_wall_label }}</span>
+                        {% endif %}
                       {% endif %}
                     </td>
                   </tr>
@@ -431,7 +455,7 @@
   {% set has_top_software = top_software|length > 0 %}
   {% set has_software_list_url = node.field_rp_software_list_url.0 is not null %}
   {% set has_sds_card = sds_has_software and sds_resource_name %}
-  {% if has_top_software or has_software_list_url or has_sds_card %}
+  {% if has_top_software or has_software_list_url or has_sds_card or ood_software|length > 0 %}
     <div id="rp-software" class="rp-top-software mb-8">
       <hr class="rp-section-rule">
       <h2 class="flex items-center gap-2"><i class="bi bi-terminal"></i> Software</h2>
@@ -441,6 +465,7 @@
         {# Left column: top-software table + intro #}
         <div class="rp-software-main">
           {% if has_top_software %}
+            <div class="rp-top-software-table">
             <p class="text-sm text-dark-gray mb-3">The following software packages are among the most frequently used on {{ node.label }}, based on job data from <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
             <h3 class="text-teal font-bold">Most Frequently Used</h3>
             <div class="overflow-x-auto">
@@ -471,8 +496,42 @@
                 </tbody>
               </table>
             </div>
+            </div>{# /.rp-top-software-table #}
           {% else %}
             <p class="text-sm text-dark-gray">No software usage data is currently reported for {{ node.label }} in <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
+          {% endif %}
+          {% if ood_software|length > 0 %}
+            <div class="rp-ood-software">
+            <h3 class="text-teal font-bold mt-6">Available via ACCESS OnDemand</h3>
+            {# Link to the resource's OnDemand instance (the existing field_rp_ondemand_url, already set up as ondemand_url). #}
+            <p class="text-sm text-dark-gray mb-3">Software available through {% if ondemand_url %}<a href="{{ ondemand_url }}" class="text-md-teal no-underline hover--underline">ACCESS OnDemand on {{ node.label }}</a>{% else %}ACCESS OnDemand on {{ node.label }}{% endif %}.</p>
+            <div class="overflow-x-auto">
+              <table class="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th class="text-left py-2 pr-4 font-semibold">Application</th>
+                    <th class="text-left py-2 pr-4 font-semibold">Description</th>
+                    <th class="text-left py-2 font-semibold">Research Discipline</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for sw in ood_software %}
+                    <tr>
+                      <td class="py-2 pr-4 font-semibold whitespace-nowrap">
+                        {%- if sw.web_page -%}
+                          <a href="{{ sw.web_page }}" class="text-md-teal no-underline hover--underline">{{ sw.name }}</a>
+                        {%- else -%}
+                          {{ sw.name }}
+                        {%- endif -%}
+                      </td>
+                      <td class="py-2 pr-4 text-sm">{{ sw.description|default('') }}</td>
+                      <td class="py-2 text-sm">{{ sw.research_field|default('') }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            </div>{# /.rp-ood-software #}
           {% endif %}
         </div>
 
@@ -492,7 +551,7 @@
                   </li>
                 {% else %}
                   <li class="mb-2 pl-0">
-                    <p class="text-sm text-dark-gray m-0">{{ node.label }} is not currently reporting available software to the <a href="https://sds.access-ci.org" class="text-md-teal no-underline hover--underline">Software Documentation Service</a>.</p>
+                    <p class="text-sm text-white m-0">{{ node.label }} is not currently reporting available software to the <a href="https://sds.access-ci.org" class="text-white underline hover--underline hover--text-white">Software Documentation Service</a>.</p>
                   </li>
                 {% endif %}
 
