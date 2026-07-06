@@ -302,22 +302,43 @@
                       {{ paragraph.field_rp_queue_purpose.value|default('') }}
                     </td>
                     <td class="py-2 pr-4 align-top">
+                      {# An unknown node count may be left blank or stored as 0;
+                         treat both as "not reported" rather than showing 0.
+                         An empty integer field's .value resolves to [] in Twig,
+                         so coerce any iterable to its first scalar first. #}
                       {% set node_count = paragraph.field_rp_node_count.value %}
-                      {% if node_count is not null and node_count != '' %}
+                      {% if node_count is iterable %}{% set node_count = node_count|first %}{% endif %}
+                      {% if node_count is not null and node_count != '' and node_count > 0 %}
                         {{ node_count|number_format }}
                       {% else %}
                         <span class="text-dark-gray">&mdash;</span>
                       {% endif %}
                     </td>
                     <td class="py-2 pr-4 align-top">
-                      {{ paragraph.field_rp_cpus.value|default('') }}
-                      {{ paragraph.field_rp_cpu_count.value|default('') }} cores
+                      {# Empty integer/text fields resolve to [] in Twig; coerce
+                         to first scalar so blank counts don't render as 0. #}
+                      {% set cpu_type = paragraph.field_rp_cpus.value %}
+                      {% if cpu_type is iterable %}{% set cpu_type = cpu_type|first %}{% endif %}
+                      {% set cpu_count = paragraph.field_rp_cpu_count.value %}
+                      {% if cpu_count is iterable %}{% set cpu_count = cpu_count|first %}{% endif %}
+                      {% if cpu_type or (cpu_count and cpu_count > 0) %}
+                        {{ cpu_type|default('') }}{% if cpu_count and cpu_count > 0 %} ({{ cpu_count }} cores){% endif %}
+                      {% else %}
+                        <span class="text-dark-gray">&mdash;</span>
+                      {% endif %}
                     </td>
                     <td class="py-2 pr-4 align-top">
+                      {# Show GPU type/vRAM even when the per-node count is blank;
+                         the count is an optional prefix. Em-dash only when the
+                         whole cell is empty. Coerce [] (empty field) to scalar. #}
                       {% set gpu_count = paragraph.field_rp_gpu_count.value %}
+                      {% if gpu_count is iterable %}{% set gpu_count = gpu_count|first %}{% endif %}
+                      {% set gpu_type = paragraph.field_rp_gpus.value %}
+                      {% if gpu_type is iterable %}{% set gpu_type = gpu_type|first %}{% endif %}
                       {% set gpu_vram = paragraph.field_rp_gpu_vram.value %}
-                      {% if gpu_count and gpu_count > 0 %}
-                        {{ gpu_count }} {{ paragraph.field_rp_gpus.value|default('') }}{% if gpu_vram %} ({{ gpu_vram }} GB vRAM){% endif %}
+                      {% if gpu_vram is iterable %}{% set gpu_vram = gpu_vram|first %}{% endif %}
+                      {% if gpu_type or gpu_vram or (gpu_count and gpu_count > 0) %}
+                        {% if gpu_count and gpu_count > 0 %}{{ gpu_count }} {% endif %}{{ gpu_type|default('') }}{% if gpu_vram %} ({{ gpu_vram }} GB vRAM){% endif %}
                       {% else %}
                         <span class="text-dark-gray">&mdash;</span>
                       {% endif %}
