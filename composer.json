@@ -1,5 +1,5 @@
 {
-    "name": "necyberteam/asp-theme",
+    "name": "connectci/asp-theme",
     "description": "A custom theme for the ACCESS Support Portal.",
     "type": "drupal-theme",
     "license": "MIT",
@@ -10,8 +10,8 @@
         }
     ],
     "support": {
-        "issues": "https://github.com/necyberteam/aspTheme/issues",
-        "source": "https://github.com/necyberteam/aspTheme"
+        "issues": "https://github.com/connectci-platform/aspTheme/issues",
+        "source": "https://github.com/connectci-platform/aspTheme"
     },
     "minimum-stability": "dev"
 }
