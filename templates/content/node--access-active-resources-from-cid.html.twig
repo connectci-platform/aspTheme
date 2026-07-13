@@ -296,10 +296,20 @@
                   {% set qname = paragraph.field_rp_queue_name.value|default('') %}
                   {% if qname %}
                   {% set qmetrics = queue_metrics[qname] ?? null %}
-                  {% set max_wall = paragraph.field_rp_max_wall_time.value %}
-                  {% set max_wall = max_wall is not empty ? max_wall|round(0, 'floor') : null %}
-                  {# Always render the max in hours to match the hour-based avg/range in the same cell. #}
-                  {% set max_wall_label = max_wall is not null ? max_wall ~ 'h' : null %}
+                  {# Field stores whole minutes. Chart math works in hours to
+                     match the hour-based avg/range in the same cell, so keep a
+                     (possibly fractional) hours value for positioning. #}
+                  {% set max_wall_min = paragraph.field_rp_max_wall_time.value %}
+                  {% if max_wall_min is iterable %}{% set max_wall_min = max_wall_min|first %}{% endif %}
+                  {% set max_wall_min = max_wall_min is not empty ? max_wall_min : null %}
+                  {% set max_wall = max_wall_min is not null ? max_wall_min / 60 : null %}
+                  {# Compact, minutes-aware chip label: "48h", "30m", "1h30m". #}
+                  {% set max_wall_label = null %}
+                  {% if max_wall_min is not null %}
+                    {% set mw_h = (max_wall_min // 60) %}
+                    {% set mw_m = max_wall_min % 60 %}
+                    {% set max_wall_label = (mw_h > 0 ? mw_h ~ 'h' : '') ~ (mw_m > 0 ? mw_m ~ 'm' : '') %}
+                  {% endif %}
                   <tr>
                     <td class="py-2 pr-4 font-semibold align-top">{{ qname }}</td>
                     <td class="py-2 pr-4 text-sm align-top">
@@ -577,6 +587,12 @@
     <div id="rp-datasets" class="rp-datasets mb-8">
       <hr class="rp-section-rule">
       <h2 class="flex items-center gap-2"><i class="bi bi-table"></i> Datasets</h2>
+      {% set datasets_text = node.field_rp_datasets_text.value %}
+      {% if datasets_text %}
+        <div class="prose max-w-none mb-4">
+          {{ node.field_rp_datasets_text.processed }}
+        </div>
+      {% endif %}
       <div class="overflow-x-auto">
         <table class="w-full border-collapse">
           <thead>
@@ -606,6 +622,13 @@
     <div id="rp-storage" class="rp-storage mb-8">
       <hr class="rp-section-rule">
       <h2 class="flex items-center gap-2"><i class="bi bi-database"></i> Storage</h2>
+
+      {% set storage_text = node.field_rp_storage_text.value %}
+      {% if storage_text %}
+        <div class="prose max-w-none mb-4">
+          {{ node.field_rp_storage_text.processed }}
+        </div>
+      {% endif %}
 
       {# File System Table #}
       {% if field_rp_storage_items|length > 0 %}
