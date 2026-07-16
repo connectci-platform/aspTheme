@@ -150,6 +150,14 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
     }
   }
 
+  $variables['ood_software'] = [];
+  if ($node->hasField('field_rp_ood_software') && !$node->get('field_rp_ood_software')->isEmpty()) {
+    $decoded = json_decode($node->get('field_rp_ood_software')->value, TRUE);
+    if (is_array($decoded)) {
+      $variables['ood_software'] = $decoded;
+    }
+  }
+
   // Pre-load paragraph data to avoid $ref->entity NULL issues.
   $paragraph_storage = \Drupal::entityTypeManager()->getStorage('paragraph');
   $paragraph_fields = [
@@ -230,6 +238,11 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
   $variables['user_rp_accounts'] = [];
   $variables['user_rp_accounts_state'] = NULL;
   $variables['user_rp_username'] = NULL;
+  // The resource-provider's view of the account, separate from account_state.
+  // A pending- value (pending-active / pending-inactive) means the RP side has
+  // not yet provisioned the account, so the panel should hold off on showing
+  // the username and account details. See RpAccountService.
+  $variables['user_rp_sp_state'] = NULL;
 
   if ($current_user->isAuthenticated()
     && !empty($variables['node'])
@@ -247,6 +260,17 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
       $usernames = array_unique(array_filter(array_column($result['rows'], 'rp_username')));
       if (count($usernames) === 1) {
         $variables['user_rp_username'] = reset($usernames);
+      }
+
+      // Treat the account as pending if ANY row's sp_state has not settled on
+      // the RP side; a pending- value means the account is not yet provisioned
+      // there even when account_state is active.
+      foreach ($result['rows'] as $row) {
+        $spState = $row['sp_state'] ?? NULL;
+        if (is_string($spState) && str_starts_with($spState, 'pending-')) {
+          $variables['user_rp_sp_state'] = $spState;
+          break;
+        }
       }
     }
     catch (\Throwable $e) {
@@ -428,7 +452,8 @@ function aspTheme_preprocess_node__resource_group(&$variables) {
 function aspTheme_theme_suggestions_page_alter(array &$suggestions, array $variables) {
   $path = \Drupal::service('path.current')->getPath();
   $alias = \Drupal::service('path_alias.manager')->getAliasByPath($path);
-  if ($alias === '/documentation' || str_starts_with($alias, '/documentation/')) {
+  if (($alias === '/documentation' || str_starts_with($alias, '/documentation/'))
+    && !str_starts_with($alias, '/documentation/resources/')) {
     $suggestions[] = 'page__access_documentation';
   }
 }

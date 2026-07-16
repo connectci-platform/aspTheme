@@ -19,18 +19,27 @@
 <div{{ attributes.addClass(classes) }}>
   {{ title_suffix }}
   {% if header %}
-    <header class="text-dark-teal prose text-2xl pe-10 mb-5">
-      {{ header }}
-      {% if can_edit_resources or can_edit_resource_groups %}
-        <div class="rp-admin-actions mb-4 flex flex-wrap gap-2 [&_.btn]--m-0">
-          {% if can_edit_resources %}
-            <a href="/rp-resources/manage" class="btn btn-sm btn-outline-secondary">Manage Resources</a>
-          {% endif %}
-          {% if can_edit_resource_groups %}
-            <a href="/rp-groups/manage" class="btn btn-sm btn-outline-secondary">Manage Resource Groups</a>
-          {% endif %}
-        </div>
-      {% endif %}
+    {# Intro text and the ARA "find the best resource" CTA share a full-width
+       header row so the listing below can span the full content width (the
+       left documentation menu already occupies a column on this page). #}
+    <header class="mb-5 flex flex-col gap-4 md--flex-row md--items-start">
+      <div class="text-dark-teal prose text-2xl pe-10 flex-1">
+        {{ header }}
+        {% if can_edit_resources or can_edit_resource_groups %}
+          <div class="rp-admin-actions mb-4 flex flex-wrap gap-2 [&_.btn]--m-0">
+            {% if can_edit_resources %}
+              <a href="/rp-resources/manage" class="btn btn-sm btn-outline-secondary">{{ 'Manage Resources'|t }}</a>
+            {% endif %}
+            {% if can_edit_resource_groups %}
+              <a href="/rp-groups/manage" class="btn btn-sm btn-outline-secondary">{{ 'Manage Resource Groups'|t }}</a>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+      <div class="rp-ara-cta bg-dark-teal text-white p-4 md--w-1/4 md--shrink-0">
+        <h3 class="mt-0 uppercase font-semibold text-sm font-bold text-white">{{ 'Find the best resource for your project'|t }}</h3>
+        <a href="https://ara.access-ci.org/" class="text-sm text-white no-underline hover--text-white hover--underline ">{{ 'Try the ACCESS Resource Advisor'|t }} &nbsp;<i class="bi bi-arrow-right"></i></a>
+      </div>
     </header>
   {% endif %}
   {% if exposed %}
@@ -45,17 +54,10 @@
   {% endif %}
 
   {% if rows %}
-    <div class="view-content grid grid-cols-1 gap-8 md--grid-cols-[1fr_25%]">
-      <div class="rp-listing-main">
-        {{ rows }}
-      </div>
-      <div class="rp-listing-sidebar">
-        <div class="bg-dark-teal text-white p-4 mb-4">
-          <h3 class="mt-0 text-lg font-bold text-white">NEED HELP CHOOSING?</h3>
-          <p class="text-sm mb-3">The ACCESS Resource Advisor (ARA) helps match your project to the right resources.</p>
-          <a href="https://ara.access-ci.org/" class="btn btn-primary">TRY THE ARA</a>
-        </div>
-      </div>
+    {# Full-width listing: the ARA CTA moved to the header above, so the
+       resource content uses the entire available column width. #}
+    <div class="view-content rp-listing-main">
+      {{ rows }}
     </div>
   {% elseif empty %}
     <div class="view-empty">

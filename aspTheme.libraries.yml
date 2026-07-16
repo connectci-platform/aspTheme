@@ -25,6 +25,13 @@ carousel:
   js:
     src/js/carousel.js: {}
 
+doc-menu:
+  version: 1.x
+  js:
+    src/js/doc-menu.js: {}
+  dependencies:
+    - core/drupal
+
 node:
   version: 1.x
   js:

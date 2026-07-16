@@ -896,6 +896,20 @@ article.node--type-tools-case-study {
   line-height: 1.1;
 }
 
+/* Keep the menu from widening its grid column: CSS Grid items default to
+   min-width:auto, so a long un-wrapped child (e.g. "Upload, Download, or Move
+   Files on ACCESS") can blow past the sidebar's 25% track and resize the menu
+   when a level expands. Pin min-width:0 on every wrapper between the grid item
+   and the menu, and let long link text wrap. */
+.region-sidebar-first,
+.region-sidebar-first .layout-sidebar-first,
+#block-asptheme-accessdocumentation {
+  @apply min-w-0 max-w-full;
+}
+#block-asptheme-accessdocumentation a {
+  @apply break-words;
+  white-space: normal;
+}
 #block-asptheme-accessdocumentation ul {
   @apply list-none;
 }
@@ -904,6 +918,56 @@ article.node--type-tools-case-study {
 }
 #block-asptheme-accessdocumentation ul > li {
   @apply p-0;
+}
+/* Top-level items: heavier weight, uppercase (via text-transform so the
+   source/screen-reader text stays normal case). */
+#block-asptheme-accessdocumentation > ul > li > a {
+  @apply font-bold uppercase;
+}
+/* Child items: normal weight and normal case. */
+#block-asptheme-accessdocumentation > ul ul a {
+  @apply font-normal normal-case;
+}
+/* Tighten the indentation of nested levels. The sidebar is wrapped in .prose,
+   which adds a large padding-left to nested <ul>; pull it back so sub-levels
+   sit closer to their parent. */
+#block-asptheme-accessdocumentation ul ul {
+  @apply ps-3;
+}
+/* Collapsible third level: the level-2 link sits inline with a chevron toggle
+   button. Toggling adds .doc-menu-open to the <li> (see asptheme/doc-menu). */
+#block-asptheme-accessdocumentation .doc-menu-row {
+  @apply flex items-center justify-between gap-2;
+}
+#block-asptheme-accessdocumentation .doc-menu-row > a {
+  @apply flex-1;
+}
+/* Fixed-size toggle so the row's right edge never moves. */
+#block-asptheme-accessdocumentation .doc-menu-toggle {
+  @apply inline-flex items-center justify-center shrink-0 w-6 h-6 bg-transparent border-0 p-0 cursor-pointer text-dark-teal;
+}
+/* Fixed-square chevron. We SWAP the glyph (right -> down) on open instead of
+   rotating: the bootstrap-icons chevron glyphs are not centred within their
+   em-box, so rotating one visually shifts it and nudges the menu width. Each
+   directional glyph is drawn correctly for its own orientation, so swapping
+   the ::before content keeps it perfectly in place. */
+#block-asptheme-accessdocumentation .doc-menu-chevron {
+  @apply inline-flex items-center justify-center w-4 h-4 text-sm leading-none;
+}
+#block-asptheme-accessdocumentation .doc-menu-chevron > i {
+  @apply block leading-none;
+}
+/* Collapsed: right-pointing (the markup's default bi-chevron-right). */
+/* Open: swap to the down glyph (bootstrap-icons \F282 = chevron-down). */
+#block-asptheme-accessdocumentation .menu-item--collapsible.doc-menu-open > .doc-menu-row .doc-menu-chevron > i.bi-chevron-right::before {
+  content: "\F282";
+}
+/* Third level is hidden until its level-2 item is open. */
+#block-asptheme-accessdocumentation .doc-menu-sub {
+  @apply hidden;
+}
+#block-asptheme-accessdocumentation .menu-item--collapsible.doc-menu-open > .doc-menu-sub {
+  @apply block;
 }
 #block-asptheme-accessdocumentation a.is-active {
   @apply text-dark-teal;
@@ -919,4 +983,22 @@ article.node--type-tools-case-study {
   h2.colored-square {
     @apply mt-10;
   }
+}
+
+.paragraphs-subform .fieldset-legend,
+.paragraph-type-label {
+  @apply text-lg font-bold;
+}
+
+#node-access-active-resources-from-cid-form:has([data-drupal-selector="edit-field-rp-account-required-value"]:checked) [for="edit-field-rp-account-setup-url-0-uri"]:after,
+#node-access-active-resources-from-cid-edit-form:has([data-drupal-selector="edit-field-rp-account-required-value"]:checked) [for="edit-field-rp-account-setup-url-0-uri"]:after {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 0.3em;
+  content: "";
+  vertical-align: super;
+  background-image: url('/themes/contrib/asp-theme/images/icons/required.svg');
+  background-repeat: no-repeat;
+  background-size: 6px 6px;
 }

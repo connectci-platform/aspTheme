@@ -21,6 +21,13 @@
 (function () {
   'use strict';
 
+  // Retry schedule (ms) for a fetch that fails or returns an unresolved
+  // (has_account === null) response. index 0 is the first attempt (immediate);
+  // subsequent entries are the backoff delays before each retry. After the
+  // last attempt still fails/unresolved, we show a neutral message rather
+  // than leaving the "Loading…" skeleton up forever.
+  var RETRY_DELAYS = [0, 1000, 2000];
+
   function init() {
     var panel = document.querySelector('.rp-account-panel');
     if (!panel) {
@@ -46,24 +53,61 @@
       url += '?live=1';
     }
 
-    fetch(url, {
-      credentials: 'same-origin',
-      headers: { 'Accept': 'application/json' },
-    })
-      .then(function (response) {
-        if (!response.ok) {
-          throw new Error('HTTP ' + response.status);
-        }
-        return response.json();
+    // Attempt the fetch, retrying on HTTP failure or an unresolved
+    // (has_account === null) response, up to RETRY_DELAYS.length attempts.
+    function attempt(i) {
+      fetch(url, {
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' },
       })
-      .then(function (data) {
-        renderResponse(panel, data);
-      })
-      .catch(function (err) {
-        if (window.console && console.warn) {
-          console.warn('rp-account refresh failed', err);
-        }
-      });
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+          }
+          return response.json();
+        })
+        .then(function (data) {
+          // has_account true/false is a resolved answer — render and stop.
+          if (data.has_account === true || data.has_account === false) {
+            renderResponse(panel, data);
+            return;
+          }
+          // Unresolved (null): the backend hasn't confirmed yet. Retry if we
+          // have attempts left, otherwise show the neutral message.
+          retryOrGiveUp(i);
+        })
+        .catch(function (err) {
+          if (window.console && console.warn) {
+            console.warn('rp-account refresh failed', err);
+          }
+          retryOrGiveUp(i);
+        });
+    }
+
+    function retryOrGiveUp(i) {
+      var next = i + 1;
+      if (next < RETRY_DELAYS.length) {
+        window.setTimeout(function () {
+          attempt(next);
+        }, RETRY_DELAYS[next]);
+      } else {
+        renderUnavailable(panel);
+      }
+    }
+
+    attempt(0);
+  }
+
+  /**
+   * Replace the loading skeleton with a neutral "unavailable" message so the
+   * panel does not hang on "Loading…" when the account data never resolves.
+   */
+  function renderUnavailable(panel) {
+    panel.removeAttribute('data-state');
+    panel.removeAttribute('data-stale');
+    panel.innerHTML =
+      '<p class="text-sm text-white mb-0">Account information is temporarily ' +
+      'unavailable. Try again later.</p>';
   }
 
   function renderResponse(panel, data) {
@@ -88,17 +132,27 @@
         renderPanelFromJson(panel, data);
       }
     } else if (data.has_account === false) {
-      // We confirmed they have no account. Replace skeleton with CTA.
-      var manageUrl = data.manage_url || 'https://allocations.access-ci.org/';
+      // We confirmed they have no account. Show the account-setup CTA.
       var rpName = (data.rp_display_name || '').toUpperCase();
-      panel.innerHTML =
+      var heading =
         '<h3 class="mt-0 text-lg font-bold text-white">GET AN ACCOUNT ON ' +
-        escapeHtml(rpName) +
-        '</h3>' +
-        '<a href="' + escapeHtml(manageUrl) + '" class="btn btn-primary">' +
-        'Apply for an account</a>';
+        escapeHtml(rpName) + '</h3>';
+      var setup = data.account_setup;
+      if (setup && setup.uri) {
+        var setupTitle = setup.title || 'RP Account Setup';
+        panel.innerHTML = heading +
+          '<a href="' + escapeHtml(setup.uri) +
+          '" class="text-white text-sm no-underline hover--underline hover--text-white leading-tight">' +
+          escapeHtml(setupTitle) + ' <i class="bi bi-arrow-right"></i></a>';
+      } else {
+        var manageUrl = data.manage_url || 'https://allocations.access-ci.org/';
+        panel.innerHTML = heading +
+          '<a href="' + escapeHtml(manageUrl) +
+          '" class="text-white text-sm no-underline hover--underline hover--text-white leading-tight">' +
+          'Request an account <i class="bi bi-arrow-right"></i></a>';
+      }
     }
-    // has_account === null → leave panel as-is.
+    // has_account === null is handled by the retry loop in init(), not here.
   }
 
   /**

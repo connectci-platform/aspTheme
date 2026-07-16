@@ -1,0 +1,69 @@
+{#
+/**
+ * @file
+ * Theme override for the Access Documentation sidebar menu.
+ *
+ * Same recursive structure as menu.html.twig, with one addition: a level-2
+ * item that has level-3 children gets a chevron toggle that collapses the
+ * third level. We deliberately avoid <details> here because the theme's global
+ * details.js accordion (and prose/details CSS) hijacks every <details> and
+ * expects a <div> content child, which conflicts with a menu <ul>. Instead the
+ * level-2 children sit in a normal <ul> that a small scoped behaviour
+ * (asptheme/doc-menu) shows/hides via the .doc-menu-open class on the <li>.
+ * The level-2 link still navigates; only the chevron toggles.
+ *
+ * Available variables:
+ * - menu_name, items (nested), attributes, and per-item: title, url, below,
+ *   is_expanded, is_collapsed, in_active_trail.
+ */
+#}
+{% import _self as menus %}
+{{ attach_library('aspTheme/doc-menu') }}
+
+{{ menus.menu_links(items, attributes, 0) }}
+
+{% macro menu_links(items, attributes, menu_level) %}
+  {% import _self as menus %}
+  {% if items %}
+    {% if menu_level == 0 %}
+      <ul{{ attributes.addClass('menu') }}>
+    {% else %}
+      <ul class="menu">
+    {% endif %}
+    {% for item in items %}
+      {%
+        set classes = [
+          'menu-item',
+          'menu-item--level-' ~ (menu_level + 1),
+          item.is_expanded ? 'menu-item--expanded',
+          item.is_collapsed ? 'menu-item--collapsed',
+          item.in_active_trail ? 'menu-item--active-trail',
+        ]
+      %}
+      {# A level-2 item (menu_level 1) with children gets a collapsible third
+         level. Open it by default when it is in the active trail so the
+         current page's siblings stay visible. #}
+      {% if menu_level == 1 and item.below %}
+        <li{{ item.attributes.addClass(classes, 'menu-item--collapsible', item.in_active_trail ? 'doc-menu-open') }}>
+          <div class="doc-menu-row">
+            {{ link(item.title, item.url) }}
+            <button type="button" class="doc-menu-toggle" aria-expanded="{{ item.in_active_trail ? 'true' : 'false' }}" aria-label="{{ 'Toggle @title submenu'|t({'@title': item.title}) }}">
+              <span class="doc-menu-chevron" aria-hidden="true"><i class="bi bi-chevron-right"></i></span>
+            </button>
+          </div>
+          <div class="doc-menu-sub">
+            {{ menus.menu_links(item.below, attributes, menu_level + 1) }}
+          </div>
+        </li>
+      {% else %}
+        <li{{ item.attributes.addClass(classes) }}>
+          {{ link(item.title, item.url) }}
+          {% if item.below %}
+            {{ menus.menu_links(item.below, attributes, menu_level + 1) }}
+          {% endif %}
+        </li>
+      {% endif %}
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endmacro %}

@@ -88,6 +88,12 @@
 	{% endif %}
 	{% if documentation_page %}
     {% set main_wrapper_classes = "layout-content container prose" %}
+    {# The default sidebar uses md--mx-auto (margin-inline:auto), which makes the
+       aside shrink-to-fit its content and re-centre — so expanding a menu level
+       widens it and the page reflows. On documentation pages fill the grid
+       track instead (w-full, min-w-0), so the menu width stays fixed and long
+       items wrap. #}
+    {% set sidebar_first_classes = "layout-sidebar-first prose w-full min-w-0" %}
 	{% endif %}
 	<main role="main" class="{{ main_content_classes }}">
     {{ page.cta }}

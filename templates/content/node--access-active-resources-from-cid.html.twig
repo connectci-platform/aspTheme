@@ -32,6 +32,19 @@
 %}
 {{ attach_library('aspTheme/node') }}
 
+{# Format a GB integer as decimal TB when it divides evenly into 1000 GB,
+   otherwise keep GB. Storage capacity convention: 1 TB = 1000 GB. Drupal's
+   format_size() expects bytes and uses binary units, so it can't be used here. #}
+{% macro gb_size(gb) %}
+{# An empty integer field resolves to [] (FieldItemList::getValue) in Twig,
+   not null, so coerce any iterable down to its first scalar value first. #}
+{%- if gb is iterable -%}{%- set gb = gb|first -%}{%- endif -%}
+{%- if gb is not null and gb != '' -%}
+  {%- if gb % 1000 == 0 -%}{{ gb // 1000 }} TB{%- else -%}{{ gb }} GB{%- endif -%}
+{%- endif -%}
+{% endmacro %}
+{% import _self as fmt %}
+
 {# Extract field values for easier access in the template #}
 {% set rp_description = node.field_rp_description.value %}
 {% set mfa_required = node.field_rp_mfa_required.value %}
@@ -80,7 +93,7 @@
       {% endif %}
 
       {# --- Embedded Chatbot --- #}
-      <div class="rp-chatbot mb-8">
+      <div class="rp-chatbot max-w-none mb-8">
         <div class="embedded-qa-bot" data-resource-context="{{ resource_context }}"></div>
       </div>
 
@@ -134,40 +147,52 @@
       {% set rp_panel_state = user_rp_accounts_state ?: (logged_in ? 'no_rows_unknown' : 'anon') %}
 
       {% if user_rp_accounts is defined and user_rp_accounts|length > 0 %}
+        {# Don't flag the panel stale while the account is being set up — a
+           background refresh would rewrite it from JSON and clobber the
+           "being set up" message. #}
         <div class="bg-dark-teal text-white p-4 mb-4 rp-account-panel"
              data-rp-nid="{{ node.id }}"
-             {% if rp_panel_state == 'rows_stale' %}data-stale="1"{% endif %}>
+             {% if rp_panel_state == 'rows_stale' and user_rp_sp_state != 'pending-active' %}data-stale="1"{% endif %}>
           <h3 class="mt-0 text-lg font-bold text-white">YOUR ACCOUNT ON {{ node.label|upper }}</h3>
-          {% if user_rp_username %}
-            <p class="text-sm text-white mb-3">Username: <strong class="text-white">{{ user_rp_username }}</strong></p>
-          {% endif %}
+          {% if user_rp_sp_state == 'pending-active' %}
+            {# The RP side is still provisioning the account (sp_state
+               pending-active), so hold off on the username and account details
+               until it settles. (pending-inactive means the account is being
+               deactivated and has account_state inactive, so it never loads
+               here — it falls through to normal/no-panel handling.) #}
+            <p class="text-sm text-white mb-3">Your account is being set up on {{ node.label }}. Check back soon.</p>
+          {% else %}
+            {% if user_rp_username %}
+              <p class="text-sm text-white mb-3">Username: <strong class="text-white">{{ user_rp_username }}</strong></p>
+            {% endif %}
 
-          <div class="rp-account-grants">
-            {% for grant in user_rp_accounts %}
-              <div class="rp-grant mb-3 pb-3{% if not loop.last %} border-b border-md-teal{% endif %}">
-                <div class="text-sm font-semibold">{{ grant.grant_number }}</div>
-                {% if grant.grant_title %}
-                  <div class="text-xs text-light-gray mb-1" title="{{ grant.grant_title }}">
-                    {{ grant.grant_title|length > 50 ? grant.grant_title|slice(0, 50) ~ '…' : grant.grant_title }}
-                  </div>
-                {% endif %}
-                {% if grant.project_end %}
-                  <div class="text-xs">Expires {{ grant.project_end|date('M j, Y') }}</div>
-                {% endif %}
-                <div class="text-xs rp-balance" data-grant="{{ grant.grant_number }}">
-                  {% if grant.project_balance is not null and grant.project_balance|trim != '' %}
-                    Balance: {{ grant.project_balance|number_format(0) }} {{ grant.billable_unit|default('') }}
-                  {% else %}
-                    <span class="rp-balance-loading">Loading balance…</span>
+            <div class="rp-account-grants">
+              {% for grant in user_rp_accounts %}
+                <div class="rp-grant mb-3 pb-3{% if not loop.last %} border-b border-md-teal{% endif %}">
+                  <div class="text-sm font-semibold">{{ grant.grant_number }}</div>
+                  {% if grant.grant_title %}
+                    <div class="text-xs text-light-gray mb-1" title="{{ grant.grant_title }}">
+                      {{ grant.grant_title|length > 50 ? grant.grant_title|slice(0, 50) ~ '…' : grant.grant_title }}
+                    </div>
                   {% endif %}
+                  {% if grant.project_end %}
+                    <div class="text-xs">Expires {{ grant.project_end|date('M j, Y') }}</div>
+                  {% endif %}
+                  <div class="text-xs rp-balance" data-grant="{{ grant.grant_number }}">
+                    {% if grant.project_balance is not null and grant.project_balance|trim != '' %}
+                      Balance: {{ grant.project_balance|number_format(0) }} {{ grant.billable_unit|default('') }}
+                    {% else %}
+                      <span class="rp-balance-loading">Loading balance…</span>
+                    {% endif %}
+                  </div>
                 </div>
-              </div>
-            {% endfor %}
-          </div>
+              {% endfor %}
+            </div>
 
-          <a href="https://allocations.access-ci.org/" class="text-white text-sm no-underline hover--underline hover--text-white">
-            Manage allocations →
-          </a>
+            <a href="https://allocations.access-ci.org/" class="text-white text-sm no-underline hover--underline hover--text-white">
+              Manage allocations →
+            </a>
+          {% endif %}
         </div>
 
       {% elseif rp_panel_state in ['no_rows_unknown', 'rows_stale', 'error'] and logged_in %}
@@ -181,15 +206,22 @@
           </div>
         </div>
 
-      {% elseif account_setup|length > 0 %}
-        {# rp_panel_state in ('no_rows_fresh', 'anon'): we know there's no
-           account, or user is anonymous. Show the existing CTA. #}
+      {% elseif rp_panel_state in ['no_rows_fresh', 'anon'] %}
+        {# We know there's no account, or the user is anonymous. Show the
+           account-setup CTA if the resource has one, else a generic
+           allocations CTA (matches the JS no-account fallback). #}
         <div class="bg-dark-teal text-white p-4 mb-4">
           <div class="mb-3">
             <h3 class="mt-0 text-lg font-bold text-white">GET AN ACCOUNT ON {{ node.label|upper }}</h3>
-            <a href="{{ account_setup.0.uri|replace({'internal:': ''}) }}" class="text-white text-sm no-underline hover--underline hover--text-white leading-tight">
-              {{ account_setup.0.title ?: 'RP Account Setup' }} <i class="bi bi-arrow-right"></i>
-            </a>
+            {% if account_setup|length > 0 %}
+              <a href="{{ account_setup.0.uri|replace({'internal:': ''}) }}" class="text-white text-sm no-underline hover--underline hover--text-white leading-tight">
+                {{ account_setup.0.title ?: 'RP Account Setup' }} <i class="bi bi-arrow-right"></i>
+              </a>
+            {% else %}
+              <a href="https://allocations.access-ci.org/" class="text-white text-sm no-underline hover--underline hover--text-white leading-tight">
+                Request an account <i class="bi bi-arrow-right"></i>
+              </a>
+            {% endif %}
           </div>
         </div>
       {% endif %}
@@ -244,9 +276,10 @@
                 <tr>
                   <th class="text-left py-2 pr-4 font-semibold align-bottom">Name</th>
                   <th class="text-left py-2 pr-4 font-semibold align-bottom">Purpose</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">CPUs</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">GPUs</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">RAM</th>
+                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Nodes</th>
+                  <th class="text-left py-2 pr-4 font-semibold align-bottom">CPU cores / node</th>
+                  <th class="text-left py-2 pr-4 font-semibold align-bottom">GPUs / node</th>
+                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Node RAM</th>
                   <th class="text-right py-2 pr-4 font-semibold align-bottom">Jobs
                     <div class="font-normal text-xs text-dark-gray">30 days</div>
                   </th>
@@ -263,14 +296,70 @@
                   {% set qname = paragraph.field_rp_queue_name.value|default('') %}
                   {% if qname %}
                   {% set qmetrics = queue_metrics[qname] ?? null %}
+                  {# Field stores whole minutes. Chart math works in hours to
+                     match the hour-based avg/range in the same cell, so keep a
+                     (possibly fractional) hours value for positioning. #}
+                  {% set max_wall_min = paragraph.field_rp_max_wall_time.value %}
+                  {% if max_wall_min is iterable %}{% set max_wall_min = max_wall_min|first %}{% endif %}
+                  {% set max_wall_min = max_wall_min is not empty ? max_wall_min : null %}
+                  {% set max_wall = max_wall_min is not null ? max_wall_min / 60 : null %}
+                  {# Compact, minutes-aware chip label: "48h", "30m", "1h30m". #}
+                  {% set max_wall_label = null %}
+                  {% if max_wall_min is not null %}
+                    {% set mw_h = (max_wall_min // 60) %}
+                    {% set mw_m = max_wall_min % 60 %}
+                    {% set max_wall_label = (mw_h > 0 ? mw_h ~ 'h' : '') ~ (mw_m > 0 ? mw_m ~ 'm' : '') %}
+                  {% endif %}
                   <tr>
                     <td class="py-2 pr-4 font-semibold align-top">{{ qname }}</td>
                     <td class="py-2 pr-4 text-sm align-top">
                       {{ paragraph.field_rp_queue_purpose.value|default('') }}
                     </td>
-                    <td class="py-2 pr-4 align-top">{{ paragraph.field_rp_cpus.value|default('') }}</td>
-                    <td class="py-2 pr-4 align-top">{{ paragraph.field_rp_gpus.value|default('') }}</td>
-                    <td class="py-2 pr-4 align-top">{{ paragraph.field_rp_ram.value|default('') }}</td>
+                    <td class="py-2 pr-4 align-top">
+                      {# An unknown node count may be left blank or stored as 0;
+                         treat both as "not reported" rather than showing 0.
+                         An empty integer field's .value resolves to [] in Twig,
+                         so coerce any iterable to its first scalar first. #}
+                      {% set node_count = paragraph.field_rp_node_count.value %}
+                      {% if node_count is iterable %}{% set node_count = node_count|first %}{% endif %}
+                      {% if node_count is not null and node_count != '' and node_count > 0 %}
+                        {{ node_count|number_format }}
+                      {% else %}
+                        <span class="text-dark-gray">&mdash;</span>
+                      {% endif %}
+                    </td>
+                    <td class="py-2 pr-4 align-top">
+                      {# Empty integer/text fields resolve to [] in Twig; coerce
+                         to first scalar so blank counts don't render as 0. #}
+                      {% set cpu_type = paragraph.field_rp_cpus.value %}
+                      {% if cpu_type is iterable %}{% set cpu_type = cpu_type|first %}{% endif %}
+                      {% set cpu_count = paragraph.field_rp_cpu_count.value %}
+                      {% if cpu_count is iterable %}{% set cpu_count = cpu_count|first %}{% endif %}
+                      {% if cpu_type or (cpu_count and cpu_count > 0) %}
+                        {{ cpu_type|default('') }}{% if cpu_count and cpu_count > 0 %} ({{ cpu_count }} cores){% endif %}
+                      {% else %}
+                        <span class="text-dark-gray">&mdash;</span>
+                      {% endif %}
+                    </td>
+                    <td class="py-2 pr-4 align-top">
+                      {# Show GPU type/vRAM even when the per-node count is blank;
+                         the count is an optional prefix. Em-dash only when the
+                         whole cell is empty. Coerce [] (empty field) to scalar. #}
+                      {% set gpu_count = paragraph.field_rp_gpu_count.value %}
+                      {% if gpu_count is iterable %}{% set gpu_count = gpu_count|first %}{% endif %}
+                      {% set gpu_type = paragraph.field_rp_gpus.value %}
+                      {% if gpu_type is iterable %}{% set gpu_type = gpu_type|first %}{% endif %}
+                      {% set gpu_vram = paragraph.field_rp_gpu_vram.value %}
+                      {% if gpu_vram is iterable %}{% set gpu_vram = gpu_vram|first %}{% endif %}
+                      {% if gpu_type or gpu_vram or (gpu_count and gpu_count > 0) %}
+                        {% if gpu_count and gpu_count > 0 %}{{ gpu_count }} {% endif %}{{ gpu_type|default('') }}{% if gpu_vram %} ({{ gpu_vram }} GB vRAM){% endif %}
+                      {% else %}
+                        <span class="text-dark-gray">&mdash;</span>
+                      {% endif %}
+                    </td>
+                    <td class="py-2 pr-4 align-top">
+                      {{ fmt.gb_size(paragraph.field_rp_vram.value) }}
+                    </td>
                     <td class="py-2 pr-4 text-right align-top">
                       {% if qmetrics and qmetrics.job_count is not null %}
                         {{ qmetrics.job_count|number_format(0) }}
@@ -292,12 +381,12 @@
                           <div class="inline-flex flex-col items-start">
                             <svg class="rp-sparkline" width="120" height="32" viewBox="0 0 120 32" role="img" focusable="false" aria-labelledby="wait-title-{{ loop.index }}">
                               <title id="wait-title-{{ loop.index }}">{{ qname }} wait time: average {{ avg|number_format(1) }} hours, range {{ spark_min|round(1) }} to {{ spark_max|round(1) }} hours over 30 days</title>
-                              <line x1="1" y1="{{ avg_y }}" x2="90" y2="{{ avg_y }}" stroke="#999" stroke-width="0.75" stroke-dasharray="3,2" />
+                              <line x1="1" y1="{{ avg_y }}" x2="112" y2="{{ avg_y }}" stroke="#999" stroke-width="0.75" stroke-dasharray="3,2" />
+                              {# Number below the chart (matches the Wall Time cell) so it never overlaps in the small SVG. #}
                               <polyline fill="none" stroke="#107180" stroke-width="1.5"
-                                points="{% for v in vals %}{{ (loop.index0 / (vals|length - 1) * 88 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
-                              <text x="93" y="{{ (avg_y + 4)|round(1) }}" font-size="11" fill="#666">{{ avg|number_format(1) }}</text>
+                                points="{% for v in vals %}{{ (loop.index0 / (vals|length - 1) * 110 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
                             </svg>
-                            <span class="text-xs text-dark-gray" aria-hidden="true">{{ spark_min|round(1) }}–{{ spark_max|round(1) }} hrs</span>
+                            <span class="text-xs text-dark-gray" aria-hidden="true">{{ spark_min|round(1) }}–{{ spark_max|round(1) }} hrs · avg {{ avg|number_format(1) }}</span>
                           </div>
                         {% else %}
                           <span>0</span>
@@ -323,23 +412,43 @@
                           {% set avg_y = avg_y < 2 ? 2 : (avg_y > 30 ? 30 : avg_y) %}
                           <div class="inline-flex flex-col items-start">
                             <svg class="rp-sparkline" width="120" height="32" viewBox="0 0 120 32" role="img" focusable="false" aria-labelledby="wall-title-{{ loop.index }}">
-                              <title id="wall-title-{{ loop.index }}">{{ qname }} wall time: average {{ avg|number_format(1) }} hours, range {{ spark_min|round(1) }} to {{ spark_max|round(1) }} hours over 30 days</title>
-                              <line x1="1" y1="{{ avg_y }}" x2="90" y2="{{ avg_y }}" stroke="#999" stroke-width="0.75" stroke-dasharray="3,2" />
+                              <title id="wall-title-{{ loop.index }}">{{ qname }} wall time: average {{ avg|number_format(1) }} hours, range {{ spark_min|round(1) }} to {{ spark_max|round(1) }} hours over 30 days{% if max_wall is not null %}, wall-time limit {{ max_wall_label }}{% endif %}</title>
+                              <line x1="1" y1="{{ avg_y }}" x2="112" y2="{{ avg_y }}" stroke="#999" stroke-width="0.75" stroke-dasharray="3,2" />
+                              {# Draw the max as a red ceiling line at its true position on the 0–spark_max scale.
+                                 When max ≤ spark_max the line sits inside the chart (and the trend may cross it —
+                                 e.g. the limit was lowered but the 30-day window still holds longer jobs). When the
+                                 max is modestly above the observed peak, clamp the line to the top. The value itself
+                                 renders as text below the chart (not next to the line) to avoid label overlap. #}
+                              {% if max_wall is not null and max_wall <= spark_max * 1.5 %}
+                                {% set max_y = (30 - (max_wall / spark_max * 28))|round(1) %}
+                                {% set max_y = max_y < 2 ? 2 : (max_y > 30 ? 30 : max_y) %}
+                                <line x1="1" y1="{{ max_y }}" x2="112" y2="{{ max_y }}" stroke="#c0392b" stroke-width="0.75" />
+                              {% endif %}
+                              {# Reference lines only in the chart; avg extends full-width now that its label moved below. #}
                               <polyline fill="none" stroke="#107180" stroke-width="1.5"
-                                points="{% for v in vals %}{{ (loop.index0 / (vals|length - 1) * 88 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
-                              <text x="93" y="{{ (avg_y + 4)|round(1) }}" font-size="11" fill="#666">{{ avg|number_format(1) }}</text>
+                                points="{% for v in vals %}{{ (loop.index0 / (vals|length - 1) * 110 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
                             </svg>
-                            <span class="text-xs text-dark-gray" aria-hidden="true">{{ spark_min|round(1) }}–{{ spark_max|round(1) }} hrs</span>
+                            {# All numbers render below the chart so nothing overlaps in the small SVG. #}
+                            <span class="text-xs text-dark-gray" aria-hidden="true">{{ spark_min|round(1) }}–{{ spark_max|round(1) }} hrs · avg {{ avg|number_format(1) }}{% if max_wall is not null %} · limit {{ max_wall_label }}{% endif %}</span>
                           </div>
                         {% else %}
                           <span>0</span>
                           <span class="sr-only">{{ qname }} wall time: 0 hours</span>
+                          {% if max_wall is not null %}
+                            <span class="text-xs" style="color:#c0392b" aria-hidden="true">max {{ max_wall_label }}</span>
+                          {% endif %}
                         {% endif %}
                       {% elseif qmetrics and qmetrics.wall_time is not null %}
                         {{ qmetrics.wall_time|number_format(1) }}
                         <span class="sr-only">hours</span>
+                        {% if max_wall is not null %}
+                          <span class="text-xs" style="color:#c0392b" aria-hidden="true"> · max {{ max_wall_label }}</span>
+                        {% endif %}
                       {% else %}
                         <span class="text-dark-gray" aria-label="No data">&mdash;</span>
+                        {% if max_wall is not null %}
+                          <span class="text-xs" style="color:#c0392b" aria-hidden="true">max {{ max_wall_label }}</span>
+                        {% endif %}
                       {% endif %}
                     </td>
                   </tr>
@@ -356,7 +465,7 @@
   {% set has_top_software = top_software|length > 0 %}
   {% set has_software_list_url = node.field_rp_software_list_url.0 is not null %}
   {% set has_sds_card = sds_has_software and sds_resource_name %}
-  {% if has_top_software or has_software_list_url or has_sds_card %}
+  {% if has_top_software or has_software_list_url or has_sds_card or ood_software|length > 0 %}
     <div id="rp-software" class="rp-top-software mb-8">
       <hr class="rp-section-rule">
       <h2 class="flex items-center gap-2"><i class="bi bi-terminal"></i> Software</h2>
@@ -366,6 +475,7 @@
         {# Left column: top-software table + intro #}
         <div class="rp-software-main">
           {% if has_top_software %}
+            <div class="rp-top-software-table">
             <p class="text-sm text-dark-gray mb-3">The following software packages are among the most frequently used on {{ node.label }}, based on job data from <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
             <h3 class="text-teal font-bold">Most Frequently Used</h3>
             <div class="overflow-x-auto">
@@ -396,8 +506,42 @@
                 </tbody>
               </table>
             </div>
+            </div>{# /.rp-top-software-table #}
           {% else %}
             <p class="text-sm text-dark-gray">No software usage data is currently reported for {{ node.label }} in <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
+          {% endif %}
+          {% if ood_software|length > 0 %}
+            <div class="rp-ood-software">
+            <h3 class="text-teal font-bold mt-6">Available via ACCESS OnDemand</h3>
+            {# Link to the resource's OnDemand instance (the existing field_rp_ondemand_url, already set up as ondemand_url). #}
+            <p class="text-sm text-dark-gray mb-3">Software available through {% if ondemand_url %}<a href="{{ ondemand_url }}" class="text-md-teal no-underline hover--underline">ACCESS OnDemand on {{ node.label }}</a>{% else %}ACCESS OnDemand on {{ node.label }}{% endif %}.</p>
+            <div class="overflow-x-auto">
+              <table class="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th class="text-left py-2 pr-4 font-semibold">Application</th>
+                    <th class="text-left py-2 pr-4 font-semibold">Description</th>
+                    <th class="text-left py-2 font-semibold">Research Discipline</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for sw in ood_software %}
+                    <tr>
+                      <td class="py-2 pr-4 font-semibold whitespace-nowrap">
+                        {%- if sw.web_page -%}
+                          <a href="{{ sw.web_page }}" class="text-md-teal no-underline hover--underline">{{ sw.name }}</a>
+                        {%- else -%}
+                          {{ sw.name }}
+                        {%- endif -%}
+                      </td>
+                      <td class="py-2 pr-4 text-sm">{{ sw.description|default('') }}</td>
+                      <td class="py-2 text-sm">{{ sw.research_field|default('') }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            </div>{# /.rp-ood-software #}
           {% endif %}
         </div>
 
@@ -417,7 +561,7 @@
                   </li>
                 {% else %}
                   <li class="mb-2 pl-0">
-                    <p class="text-sm text-dark-gray m-0">{{ node.label }} is not currently reporting available software to the <a href="https://sds.access-ci.org" class="text-md-teal no-underline hover--underline">Software Documentation Service</a>.</p>
+                    <p class="text-sm text-white m-0">{{ node.label }} is not currently reporting available software to the <a href="https://sds.access-ci.org" class="text-white underline hover--underline hover--text-white">Software Documentation Service</a>.</p>
                   </li>
                 {% endif %}
 
@@ -443,6 +587,12 @@
     <div id="rp-datasets" class="rp-datasets mb-8">
       <hr class="rp-section-rule">
       <h2 class="flex items-center gap-2"><i class="bi bi-table"></i> Datasets</h2>
+      {% set datasets_text = node.field_rp_datasets_text.value %}
+      {% if datasets_text %}
+        <div class="prose max-w-none mb-4">
+          {{ node.field_rp_datasets_text.processed }}
+        </div>
+      {% endif %}
       <div class="overflow-x-auto">
         <table class="w-full border-collapse">
           <thead>
@@ -473,6 +623,13 @@
       <hr class="rp-section-rule">
       <h2 class="flex items-center gap-2"><i class="bi bi-database"></i> Storage</h2>
 
+      {% set storage_text = node.field_rp_storage_text.value %}
+      {% if storage_text %}
+        <div class="prose max-w-none mb-4">
+          {{ node.field_rp_storage_text.processed }}
+        </div>
+      {% endif %}
+
       {# File System Table #}
       {% if field_rp_storage_items|length > 0 %}
         <h3 class="text-teal font-bold">File System</h3>
@@ -494,7 +651,10 @@
                 <tr>
                   <td class="py-2 pr-4 font-semibold">{{ paragraph.field_rp_directory.value|default('') }}</td>
                   <td class="py-2 pr-4">{{ paragraph.field_rp_fs_path.value|default('') }}</td>
-                  <td class="py-2 pr-4">{{ paragraph.field_rp_quota.value|default('') }}</td>
+                  <td class="py-2 pr-4">
+                    {% set quota_inode = paragraph.field_rp_quota_inode_amount.value %}
+                    {{ fmt.gb_size(paragraph.field_rp_quota_size.value) }}{% if quota_inode %}, {{ quota_inode|number_format }} files{% endif %}
+                  </td>
                   <td class="py-2 pr-4">{{ paragraph.field_rp_purge.value|default('') }}</td>
                   <td class="py-2 pr-4">{{ paragraph.field_rp_backup.value|default('') }}</td>
                   <td class="py-2">{{ paragraph.field_rp_fs_notes.value|default('') }}</td>
@@ -595,9 +755,6 @@
             {% set placeholder = login.field_rp_ssh_user_placeholder.value|default('<your_username>') %}
             {% set docs_uri = login.field_rp_ssh_docs_url.0.uri|default('') %}
             {% set docs_title = login.field_rp_ssh_docs_url.0.title|default('') %}
-            {% if hostname is empty and login.field_rp_ssh_url.uri %}
-              {% set hostname = login.field_rp_ssh_url.uri|replace({'https://': '', 'http://': ''}) %}
-            {% endif %}
             {% set ssh_entries = ssh_entries|merge([{
               'hostname': hostname,
               'placeholder': placeholder,
@@ -616,7 +773,12 @@
 
           <div class="border-2 border-dark-teal p-4">
             <h3 class="text-lg font-bold mt-0 mb-3">SSH Login</h3>
-            <select id="rp-ssh-login-select" class="w-full border border-gray rounded-md p-2 mb-2" data-placeholder-fallback="&lt;your_username&gt;">
+            {# Only surface the user's real RP username in the ssh command once
+               the account is provisioned. While sp_state is pending-active the
+               account panel above says "being set up", so don't imply a usable
+               login name here — fall back to the generic placeholder. #}
+            {% set ssh_username = user_rp_sp_state == 'pending-active' ? '' : user_rp_username|default('') %}
+            <select id="rp-ssh-login-select" class="w-full border border-gray rounded-md p-2 mb-2" data-placeholder-fallback="&lt;your_username&gt;" data-user-username="{{ ssh_username }}">
               {% for entry in ssh_entries %}
                 <option value="{{ entry.hostname }}" data-placeholder="{{ entry.placeholder }}" data-docs-uri="{{ entry.docs_uri }}" data-docs-title="{{ entry.docs_title }}" {{ entry.recommended ? 'selected' : '' }}>
                   {{ entry.hostname }}{% if entry.recommended %} | RECOMMENDED{% endif %}
@@ -624,7 +786,7 @@
               {% endfor %}
             </select>
             <div class="overflow-x-auto bg-light-gray rounded-md mb-3">
-              <code id="rp-ssh-command" class="not-prose block p-2 text-sm whitespace-nowrap">$ ssh <span id="rp-ssh-placeholder">{{ user_rp_username|default(first_entry.placeholder) }}</span>@<span id="rp-ssh-hostname">{{ first_entry.hostname }}</span></code>
+              <code id="rp-ssh-command" class="not-prose block p-2 text-sm whitespace-nowrap">$ ssh <span id="rp-ssh-placeholder">{{ ssh_username ?: first_entry.placeholder }}</span>@<span id="rp-ssh-hostname">{{ first_entry.hostname }}</span></code>
             </div>
             <div id="rp-ssh-docs" class="text-sm{% if not first_entry.docs_uri %} hidden{% endif %}">
               <a id="rp-ssh-docs-link" href="{{ first_entry.docs_uri }}" class="flex items-center gap-1 text-md-teal no-underline hover--underline">
@@ -710,12 +872,13 @@
   if (!select || !hostnameEl) return;
 
   var fallback = select.getAttribute('data-placeholder-fallback') || '<your_username>';
+  var userUsername = select.getAttribute('data-user-username') || '';
 
   function apply() {
     var opt = select.options[select.selectedIndex];
     hostnameEl.textContent = opt.value;
     if (placeholderEl) {
-      placeholderEl.textContent = opt.getAttribute('data-placeholder') || fallback;
+      placeholderEl.textContent = userUsername || opt.getAttribute('data-placeholder') || fallback;
     }
     if (docsContainer && docsLink && docsText) {
       var docsUri = opt.getAttribute('data-docs-uri');
