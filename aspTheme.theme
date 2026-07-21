@@ -452,7 +452,11 @@ function aspTheme_preprocess_node__resource_group(&$variables) {
 function aspTheme_theme_suggestions_page_alter(array &$suggestions, array $variables) {
   $path = \Drupal::service('path.current')->getPath();
   $alias = \Drupal::service('path_alias.manager')->getAliasByPath($path);
+  // The sidebar is suppressed on the resource documentation listing
+  // (/documentation/resources) and on the individual resource pages
+  // (/documentation/resources/*); both use their own full-width layout.
   if (($alias === '/documentation' || str_starts_with($alias, '/documentation/'))
+    && $alias !== '/documentation/resources'
     && !str_starts_with($alias, '/documentation/resources/')) {
     $suggestions[] = 'page__access_documentation';
   }
