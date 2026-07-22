@@ -1,4 +1,4 @@
-(function () {
+;(function () {
   'use strict';
 
   // Returns the responsive item count given a base (desktop) count:
@@ -19,10 +19,21 @@
     let timer = null;
     let visibilityHandler = null;
 
+    // Set every width property together. Setting only min-width lets Safari
+    // keep honoring any CSS max-width/flex-basis cap, which breaks the
+    // responsive breakpoints; pinning flex/width/min/max removes ambiguity.
+    function setItemWidth(item, pct) {
+      const w = pct + '%';
+      item.style.flex = '0 0 ' + w;
+      item.style.width = w;
+      item.style.minWidth = w;
+      item.style.maxWidth = w;
+    }
+
     if (total <= itemsPerSlide) {
       // Show all items with equal width, no sliding needed.
       items.forEach(function (item) {
-        item.style.minWidth = (100 / total) + '%';
+        setItemWidth(item, 100 / total);
       });
       inner.style.transform = '';
       inner.style.transition = 'none';
@@ -35,11 +46,8 @@
     });
 
     const itemWidth = 100 / itemsPerSlide;
-    items.forEach(function (item) {
-      item.style.minWidth = itemWidth + '%';
-    });
     inner.querySelectorAll('.carousel-item').forEach(function (item) {
-      item.style.minWidth = itemWidth + '%';
+      setItemWidth(item, itemWidth);
     });
 
     let current = 0;
@@ -130,7 +138,15 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
+  function ready(fn) {
+    if (document.readyState !== 'loading') {
+      fn();
+    } else {
+      document.addEventListener('DOMContentLoaded', fn);
+    }
+  }
+
+  ready(function () {
     var projectSlider = document.querySelector('#projectSlider');
     if (projectSlider) initCarousel(projectSlider, 3, 5000);
 

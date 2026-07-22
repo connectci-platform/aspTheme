@@ -881,6 +881,16 @@ article.node--type-tools-case-study {
   }
 }
 
+.tools-research-studies .clip-title:hover button {
+  @apply hidden;
+}
+
+@media screen(lg) {
+  .tools-research-studies .clip-title:hover button {
+    @apply block;
+  }
+}
+
 .tcs-researchers-block__institution {
   font-size: 0.8rem;
   line-height: 1.1;

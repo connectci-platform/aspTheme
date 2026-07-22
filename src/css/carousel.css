@@ -15,9 +15,14 @@
 }
 
 .carousel-item {
-  flex: 0 0 calc(33.333% - 1rem);
-  max-width: calc(33.333% - 1rem);
-  margin: 0 0.5rem;
+  /* Width is set by carousel.js per breakpoint. Keep the box model neutral
+   * so JS is the single source of truth (Safari otherwise honors a CSS
+   * max-width cap and ignores the JS min-width override). The inter-card
+   * gutter lives inside the box as padding so each item occupies exactly its
+   * percentage of the track and the translateX steps line up with no drift. */
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 0.5rem;
   box-sizing: border-box;
 }
 
