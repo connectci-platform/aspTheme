@@ -69,20 +69,15 @@
     <div class="rp-main-content">
 
       {{ title_prefix }}
-      <div class="flex flex-wrap items-center gap-4 mb-4 justify-between">
-        <div class="flex gap-4 items-center">
-          {% if mfa_required %}
-            <span class="flex items-center gap-1 text-sm">
-              <i class="bi bi-shield-lock-fill text-teal"></i> 2FA/MFA required for login
-            </span>
-          {% endif %}
-          {% if account_required %}
+      {% if account_required %}
+        <div class="flex flex-wrap items-center gap-4 mb-4 justify-between">
+          <div class="flex gap-4 items-center">
             <span class="flex items-center gap-1 text-sm">
               <i class="bi bi-check-circle-fill text-teal"></i> RP account needed
             </span>
-          {% endif %}
+          </div>
         </div>
-      </div>
+      {% endif %}
       {{ title_suffix }}
 
       {# --- Description --- #}
@@ -265,7 +260,15 @@
           {{ node.field_rp_jobs_info.processed }}
         </div>
       {% endif %}
-      {% if field_rp_queue_specs_items|length > 0 %}
+      {# Only render if at least one queue has a name, otherwise the heading
+         and column headers show above an empty body. #}
+      {% set has_queue_rows = false %}
+      {% for paragraph in field_rp_queue_specs_items %}
+        {% if paragraph.field_rp_queue_name.value|default('') %}
+          {% set has_queue_rows = true %}
+        {% endif %}
+      {% endfor %}
+      {% if has_queue_rows %}
         <h3>Queue specifications</h3>
           {% if queue_metrics_updated %}
             <p class="text-xs text-dark-gray mb-2">Metrics updated {{ queue_metrics_updated }}</p>
@@ -593,6 +596,15 @@
           {{ node.field_rp_datasets_text.processed }}
         </div>
       {% endif %}
+      {# Only render the table if at least one row has a name, otherwise the
+         headers show above an empty body. #}
+      {% set has_dataset_rows = false %}
+      {% for paragraph in field_rp_datasets_items %}
+        {% if paragraph.field_rp_dataset_name.value|default('') %}
+          {% set has_dataset_rows = true %}
+        {% endif %}
+      {% endfor %}
+      {% if has_dataset_rows %}
       <div class="overflow-x-auto">
         <table class="w-full border-collapse">
           <thead>
@@ -613,6 +625,7 @@
           </tbody>
         </table>
       </div>
+      {% endif %}
     </div>
   {% endif %}
 
@@ -630,8 +643,15 @@
         </div>
       {% endif %}
 
-      {# File System Table #}
-      {% if field_rp_storage_items|length > 0 %}
+      {# File System Table — only render if at least one row has a directory,
+         otherwise the headers show above an empty body. #}
+      {% set has_storage_rows = false %}
+      {% for paragraph in field_rp_storage_items %}
+        {% if paragraph.field_rp_directory.value|default('') %}
+          {% set has_storage_rows = true %}
+        {% endif %}
+      {% endfor %}
+      {% if has_storage_rows %}
         <h3 class="text-teal font-bold">File System</h3>
         <div class="overflow-x-auto">
           <table class="w-full border-collapse">
@@ -688,6 +708,15 @@
           {{ node.field_rp_file_transfer_text.processed }}
         </div>
       {% endif %}
+      {# Only render the table if at least one row has a transfer method,
+         otherwise the headers show above an empty body. #}
+      {% set has_transfer_rows = false %}
+      {% for paragraph in field_rp_file_transfer_items %}
+        {% if paragraph.field_rp_method.value|default('') %}
+          {% set has_transfer_rows = true %}
+        {% endif %}
+      {% endfor %}
+      {% if has_transfer_rows %}
       <div class="overflow-x-auto">
         <table class="w-full border-collapse">
           <thead>
@@ -721,6 +750,7 @@
           </tbody>
         </table>
       </div>
+      {% endif %}
     </div>
   {% endif %}
 
@@ -729,10 +759,16 @@
   {% set ssh_logins = field_rp_ssh_login_nodes_items %}
   {% set login_text = node.field_rp_login_text.value %}
   {% set login_help = node.field_rp_login_help_links %}
-  {% if ssh_logins|length > 0 or ondemand_url or login_text or login_help|length > 0 or account_setup|length > 0 %}
+  {% if ssh_logins|length > 0 or ondemand_url or login_text or login_help|length > 0 or account_setup|length > 0 or mfa_required %}
     <div id="rp-login" class="rp-login mb-8">
       <hr class="rp-section-rule">
       <h2 class="flex items-center gap-2"><i class="bi bi-box-arrow-in-right"></i> Login to {{ node.label }}</h2>
+
+      {% if mfa_required %}
+        <p class="flex items-center gap-1 text-sm mb-4">
+          <i class="bi bi-shield-lock-fill text-teal"></i> 2FA/MFA required for login
+        </p>
+      {% endif %}
 
       {# Login text — rich text above login boxes #}
       {% if login_text %}
