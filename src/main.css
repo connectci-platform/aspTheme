@@ -156,11 +156,7 @@ table.views-table tr td {
 .path-events .field--name-description a,
 .view-recurring-events-event-instances .views-field-body__format a,
 .access-break-links a {
-  word-break:break-all;
-}
-
-.path-events .layout-content .field--name-description a {
-  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .stretched-link::after {
