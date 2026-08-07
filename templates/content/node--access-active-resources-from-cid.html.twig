@@ -83,7 +83,7 @@
       {# --- Description --- #}
       {% if rp_description %}
         <div class="rp-description prose max-w-none mb-8">
-          {{ node.field_rp_description.processed }}
+          {{ expandable_text(node.field_rp_description.processed, 4) }}
         </div>
       {% endif %}
 
