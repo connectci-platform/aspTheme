@@ -687,11 +687,9 @@
       {% endif %}
 
       {# External Storage #}
-      {# DEMO: tinted panel to verify the --expandable-fade-color override on a
-         non-white background. The fade must resolve to #eef4f7, not white. #}
       {% if external_storage %}
         <h3 class="text-teal font-bold mt-6">External Storage</h3>
-        <div class="prose max-w-none p-4 rounded" style="background:#eef4f7; --expandable-fade-color:#eef4f7;">
+        <div class="prose max-w-none mb-8">
           {{ expandable_text(node.field_rp_external_storage.processed, 6) }}
         </div>
       {% endif %}
