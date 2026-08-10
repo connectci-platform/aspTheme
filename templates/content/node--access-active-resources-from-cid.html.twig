@@ -83,7 +83,7 @@
       {# --- Description --- #}
       {% if rp_description %}
         <div class="rp-description prose max-w-none mb-8">
-          {{ node.field_rp_description.processed }}
+          {{ expandable_text(node.field_rp_description.processed, 6) }}
         </div>
       {% endif %}
 
@@ -257,7 +257,7 @@
       <h2 class="flex items-center gap-2"><i class="bi bi-card-checklist"></i> Jobs</h2>
       {% if jobs_info %}
         <div class="prose max-w-none mb-6">
-          {{ node.field_rp_jobs_info.processed }}
+          {{ expandable_text(node.field_rp_jobs_info.processed, 6) }}
         </div>
       {% endif %}
       {# Only render if at least one queue has a name, otherwise the heading
@@ -593,7 +593,7 @@
       {% set datasets_text = node.field_rp_datasets_text.value %}
       {% if datasets_text %}
         <div class="prose max-w-none mb-4">
-          {{ node.field_rp_datasets_text.processed }}
+          {{ expandable_text(node.field_rp_datasets_text.processed, 6) }}
         </div>
       {% endif %}
       {# Only render the table if at least one row has a name, otherwise the
@@ -639,7 +639,7 @@
       {% set storage_text = node.field_rp_storage_text.value %}
       {% if storage_text %}
         <div class="prose max-w-none mb-4">
-          {{ node.field_rp_storage_text.processed }}
+          {{ expandable_text(node.field_rp_storage_text.processed, 6) }}
         </div>
       {% endif %}
 
@@ -689,8 +689,8 @@
       {# External Storage #}
       {% if external_storage %}
         <h3 class="text-teal font-bold mt-6">External Storage</h3>
-        <div class="prose max-w-none">
-          {{ node.field_rp_external_storage.processed }}
+        <div class="prose max-w-none mb-8">
+          {{ expandable_text(node.field_rp_external_storage.processed, 6) }}
         </div>
       {% endif %}
     </div>
@@ -705,7 +705,7 @@
       {% set file_transfer_text = node.field_rp_file_transfer_text.value %}
       {% if file_transfer_text %}
         <div class="prose max-w-none mb-4">
-          {{ node.field_rp_file_transfer_text.processed }}
+          {{ expandable_text(node.field_rp_file_transfer_text.processed, 6) }}
         </div>
       {% endif %}
       {# Only render the table if at least one row has a transfer method,
@@ -773,7 +773,7 @@
       {# Login text — rich text above login boxes #}
       {% if login_text %}
         <div class="prose max-w-none mb-4">
-          {{ node.field_rp_login_text.processed }}
+          {{ expandable_text(node.field_rp_login_text.processed, 6) }}
         </div>
       {% endif %}
 
