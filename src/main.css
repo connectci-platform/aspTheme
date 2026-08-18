@@ -887,9 +887,13 @@ article.node--type-tools-case-study {
   }
 }
 
+.tcs-researchers-block__name,
 .tcs-researchers-block__institution {
-  font-size: 0.8rem;
-  line-height: 1.1;
+  line-height: 1.4;
+}
+
+.tcs-researchers-block__institution {
+  @apply italic;
 }
 
 /* Keep the menu from widening its grid column: CSS Grid items default to
