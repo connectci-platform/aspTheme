@@ -891,10 +891,6 @@ article.node--type-tools-case-study {
   line-height: 1.4;
 }
 
-.tcs-researchers-block__institution {
-  @apply italic;
-}
-
 /* Keep the menu from widening its grid column: CSS Grid items default to
    min-width:auto, so a long un-wrapped child (e.g. "Upload, Download, or Move
    Files on ACCESS") can blow past the sidebar's 25% track and resize the menu
