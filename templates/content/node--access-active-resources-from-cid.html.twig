@@ -253,7 +253,18 @@
   {% set jobs_info = node.field_rp_jobs_info.value %}
   {% if field_rp_queue_specs_items|length > 0 or jobs_info %}
     <div id="rp-jobs" class="rp-queue-specs mb-8">
-      <h2 class="flex items-center gap-2"><i class="bi bi-card-checklist"></i> Submitting Jobs</h2>
+      {# Optional link to the RP's own job submission documentation. #}
+      {% set submitting_jobs_link = node.field_rp_submitting_jobs.0 %}
+      <div class="flex items-baseline gap-4 flex-wrap">
+        <h2 class="flex items-center gap-2"><i class="bi bi-card-checklist"></i>
+          Submitting Jobs
+          {% if submitting_jobs_link.uri|default('') %}
+            <a href="{{ submitting_jobs_link.uri }}" class="no-underline">
+              <i class="bi bi-book text-md-teal"></i>
+            </a>
+          {% endif %}
+        </h2>
+      </div>
       {% if jobs_info %}
         <div class="prose max-w-none mb-6">
           {{ expandable_text(node.field_rp_jobs_info.processed, 3) }}
@@ -300,7 +311,16 @@
         {% endif %}
       {% endfor %}
       {% if has_queue_rows %}
-        <h3>Queue specifications</h3>
+        <h3>
+          Queue specifications
+          {# Optional link to the RP's own queue documentation. #}
+          {% set queue_spec_link = node.field_rp_queue_spec_link.0 %}
+          {% if queue_spec_link.uri|default('') %}
+            <a href="{{ queue_spec_link.uri }}" class="no-underline text-dark-teal">
+               <i class="bi bi-book text-md-teal"></i>
+            </a>
+          {% endif %}
+        </h3>
           {% if queue_metrics_updated %}
             <p class="text-xs text-dark-gray mb-2">Metrics updated {{ queue_metrics_updated }}</p>
           {% endif %}
@@ -325,12 +345,12 @@
                   {% if col_ram %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Node RAM</th>{% endif %}
                   {% if col_max_wall %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Max wallclock</th>{% endif %}
                   {% if col_wait %}
-                    <th class="text-left py-2 pr-4 font-semibold align-bottom">Wait Time
+                    <th class="text-left py-2 pr-4 font-semibold align-bottom">Wait time
                       <div class="font-normal text-xs text-dark-gray">30-day trend</div>
                     </th>
                   {% endif %}
                   {% if col_wall %}
-                    <th class="text-left py-2 pr-4 font-semibold align-bottom">Wall Time
+                    <th class="text-left py-2 pr-4 font-semibold align-bottom">Wall time
                       <div class="font-normal text-xs text-dark-gray">30-day trend</div>
                     </th>
                   {% endif %}
