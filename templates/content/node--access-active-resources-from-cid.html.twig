@@ -522,7 +522,7 @@
                     <tr>
                       <td class="py-2 pr-4 font-semibold whitespace-nowrap">
                         {%- if software.web_page -%}
-                          <a href="{{ software.web_page }}" class="text-md-teal no-underline hover--underline">{{ software.name }}</a>
+                          <a href="https://sds.access-ci.org/?software={{ software.name|replace({' ': '_'})|url_encode }}" class="text-md-teal no-underline hover--underline">{{ software.name }}</a>
                         {%- else -%}
                           {{ software.name }}
                         {%- endif -%}
