@@ -261,10 +261,42 @@
       {% endif %}
       {# Only render if at least one queue has a name, otherwise the heading
          and column headers show above an empty body. #}
+      {# The same pass also flags which optional columns have data in at least
+         one row; a column empty across every row is dropped from the table
+         entirely rather than rendering a full column of "N/A". Empty
+         integer/text fields resolve to [] in Twig, so coerce to scalar first. #}
       {% set has_queue_rows = false %}
+      {% set col_purpose = false %}
+      {% set col_cpu = false %}
+      {% set col_gpu = false %}
+      {% set col_nodes = false %}
+      {% set col_ram = false %}
+      {% set col_max_wall = false %}
+      {% set col_wait = false %}
+      {% set col_wall = false %}
+      {% set col_jobs = false %}
       {% for paragraph in field_rp_queue_specs_items %}
-        {% if paragraph.field_rp_queue_name.value|default('') %}
+        {% set qname = paragraph.field_rp_queue_name.value|default('') %}
+        {% if qname %}
           {% set has_queue_rows = true %}
+          {% set qm = queue_metrics[qname] ?? null %}
+          {% if paragraph.field_rp_queue_purpose.value|default('') %}{% set col_purpose = true %}{% endif %}
+          {% set v = paragraph.field_rp_cpus.value %}{% if v is iterable %}{% set v = v|first %}{% endif %}
+          {% set n = paragraph.field_rp_cpu_count.value %}{% if n is iterable %}{% set n = n|first %}{% endif %}
+          {% if v or (n and n > 0) %}{% set col_cpu = true %}{% endif %}
+          {% set v = paragraph.field_rp_gpus.value %}{% if v is iterable %}{% set v = v|first %}{% endif %}
+          {% set n = paragraph.field_rp_gpu_vram.value %}{% if n is iterable %}{% set n = n|first %}{% endif %}
+          {% set c = paragraph.field_rp_gpu_count.value %}{% if c is iterable %}{% set c = c|first %}{% endif %}
+          {% if v or n or (c and c > 0) %}{% set col_gpu = true %}{% endif %}
+          {% set v = paragraph.field_rp_node_count.value %}{% if v is iterable %}{% set v = v|first %}{% endif %}
+          {% if v is not null and v != '' and v > 0 %}{% set col_nodes = true %}{% endif %}
+          {% set v = paragraph.field_rp_vram.value %}{% if v is iterable %}{% set v = v|first %}{% endif %}
+          {% if v is not null and v != '' %}{% set col_ram = true %}{% endif %}
+          {% set v = paragraph.field_rp_max_wall_time.value %}{% if v is iterable %}{% set v = v|first %}{% endif %}
+          {% if v is not empty %}{% set col_max_wall = true %}{% endif %}
+          {% if qm and (qm.wait_time is not null or qm.daily_wait|default([])|length > 0) %}{% set col_wait = true %}{% endif %}
+          {% if qm and (qm.wall_time is not null or qm.daily_wall|default([])|length > 0) %}{% set col_wall = true %}{% endif %}
+          {% if qm and qm.job_count is not null %}{% set col_jobs = true %}{% endif %}
         {% endif %}
       {% endfor %}
       {% if has_queue_rows %}
@@ -286,21 +318,27 @@
               <thead>
                 <tr>
                   <th class="text-left py-2 pr-4 font-semibold align-bottom">Name</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Purpose</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">CPU cores / node</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">GPUs / node</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Num nodes</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Node RAM</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Max wallclock</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Wait Time
-                    <div class="font-normal text-xs text-dark-gray">30-day trend</div>
-                  </th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Wall Time
-                    <div class="font-normal text-xs text-dark-gray">30-day trend</div>
-                  </th>
-                  <th class="text-right py-2 font-semibold align-bottom">Number of jobs run
-                    <div class="font-normal text-xs text-dark-gray">30 days</div>
-                  </th>
+                  {% if col_purpose %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Purpose</th>{% endif %}
+                  {% if col_cpu %}<th class="text-left py-2 pr-4 font-semibold align-bottom">CPU cores / node</th>{% endif %}
+                  {% if col_gpu %}<th class="text-left py-2 pr-4 font-semibold align-bottom">GPUs / node</th>{% endif %}
+                  {% if col_nodes %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Num nodes</th>{% endif %}
+                  {% if col_ram %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Node RAM</th>{% endif %}
+                  {% if col_max_wall %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Max wallclock</th>{% endif %}
+                  {% if col_wait %}
+                    <th class="text-left py-2 pr-4 font-semibold align-bottom">Wait Time
+                      <div class="font-normal text-xs text-dark-gray">30-day trend</div>
+                    </th>
+                  {% endif %}
+                  {% if col_wall %}
+                    <th class="text-left py-2 pr-4 font-semibold align-bottom">Wall Time
+                      <div class="font-normal text-xs text-dark-gray">30-day trend</div>
+                    </th>
+                  {% endif %}
+                  {% if col_jobs %}
+                    <th class="text-right py-2 font-semibold align-bottom">Number of jobs run
+                      <div class="font-normal text-xs text-dark-gray">30 days</div>
+                    </th>
+                  {% endif %}
                 </tr>
               </thead>
               <tbody>
@@ -324,9 +362,13 @@
                   {% endif %}
                   <tr>
                     <td class="py-2 pr-4 font-semibold align-top">{{ qname }}</td>
+                    {% if col_purpose %}
                     <td class="py-2 pr-4 text-sm align-top">
-                      {{ paragraph.field_rp_queue_purpose.value|default('') }}
+                      {% set qpurpose = paragraph.field_rp_queue_purpose.value|default('') %}
+                      {% if qpurpose %}{{ qpurpose }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}
                     </td>
+                    {% endif %}
+                    {% if col_cpu %}
                     <td class="py-2 pr-4 align-top">
                       {# Empty integer/text fields resolve to [] in Twig; coerce
                          to first scalar so blank counts don't render as 0. #}
@@ -337,12 +379,14 @@
                       {% if cpu_type or (cpu_count and cpu_count > 0) %}
                         {{ cpu_type|default('') }}{% if cpu_count and cpu_count > 0 %} ({{ cpu_count }} cores){% endif %}
                       {% else %}
-                        <span class="text-dark-gray">&mdash;</span>
+                        <span class="text-dark-gray">N/A</span>
                       {% endif %}
                     </td>
+                    {% endif %}
+                    {% if col_gpu %}
                     <td class="py-2 pr-4 align-top">
                       {# Show GPU type/vRAM even when the per-node count is blank;
-                         the count is an optional prefix. Em-dash only when the
+                         the count is an optional prefix. N/A only when the
                          whole cell is empty. Coerce [] (empty field) to scalar. #}
                       {% set gpu_count = paragraph.field_rp_gpu_count.value %}
                       {% if gpu_count is iterable %}{% set gpu_count = gpu_count|first %}{% endif %}
@@ -353,9 +397,11 @@
                       {% if gpu_type or gpu_vram or (gpu_count and gpu_count > 0) %}
                         {% if gpu_count and gpu_count > 0 %}{{ gpu_count }} {% endif %}{{ gpu_type|default('') }}{% if gpu_vram %} ({{ gpu_vram }} GB vRAM){% endif %}
                       {% else %}
-                        <span class="text-dark-gray">&mdash;</span>
+                        <span class="text-dark-gray">N/A</span>
                       {% endif %}
                     </td>
+                    {% endif %}
+                    {% if col_nodes %}
                     <td class="py-2 pr-4 align-top">
                       {# An unknown node count may be left blank or stored as 0;
                          treat both as "not reported" rather than showing 0.
@@ -366,19 +412,26 @@
                       {% if node_count is not null and node_count != '' and node_count > 0 %}
                         {{ node_count|number_format }}
                       {% else %}
-                        <span class="text-dark-gray">&mdash;</span>
+                        <span class="text-dark-gray">N/A</span>
                       {% endif %}
                     </td>
+                    {% endif %}
+                    {% if col_ram %}
                     <td class="py-2 pr-4 align-top">
-                      {{ fmt.gb_size(paragraph.field_rp_vram.value) }}
+                      {% set node_ram = fmt.gb_size(paragraph.field_rp_vram.value)|trim %}
+                      {% if node_ram %}{{ node_ram }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}
                     </td>
+                    {% endif %}
+                    {% if col_max_wall %}
                     <td class="py-2 pr-4 align-top">
                       {% if max_wall is not null %}
                         {{ max_wall_label }}
                       {% else %}
-                        <span class="text-dark-gray" aria-label="No data">&mdash;</span>
+                        <span class="text-dark-gray" aria-label="Not applicable">N/A</span>
                       {% endif %}
                     </td>
+                    {% endif %}
+                    {% if col_wait %}
                     <td class="py-2 pr-4 align-top">
                       {% if qmetrics and qmetrics.daily_wait|default([])|length > 1 %}
                         {% set vals = qmetrics.daily_wait %}
@@ -408,9 +461,11 @@
                         {{ qmetrics.wait_time|number_format(1) }}
                         <span class="sr-only">hours</span>
                       {% else %}
-                        <span class="text-dark-gray" aria-label="No data">&mdash;</span>
+                        <span class="text-dark-gray" aria-label="Not applicable">N/A</span>
                       {% endif %}
                     </td>
+                    {% endif %}
+                    {% if col_wall %}
                     <td class="py-2 pr-4 align-top">
                       {% if qmetrics and qmetrics.daily_wall|default([])|length > 1 %}
                         {% set vals = qmetrics.daily_wall %}
@@ -457,19 +512,22 @@
                           <span class="text-xs" style="color:#c0392b" aria-hidden="true"> · max {{ max_wall_label }}</span>
                         {% endif %}
                       {% else %}
-                        <span class="text-dark-gray" aria-label="No data">&mdash;</span>
+                        <span class="text-dark-gray" aria-label="Not applicable">N/A</span>
                         {% if max_wall is not null %}
                           <span class="text-xs" style="color:#c0392b" aria-hidden="true">max {{ max_wall_label }}</span>
                         {% endif %}
                       {% endif %}
                     </td>
+                    {% endif %}
+                    {% if col_jobs %}
                     <td class="py-2 text-right align-top">
                       {% if qmetrics and qmetrics.job_count is not null %}
                         {{ qmetrics.job_count|number_format(0) }}
                       {% else %}
-                        <span class="text-dark-gray">&mdash;</span>
+                        <span class="text-dark-gray">N/A</span>
                       {% endif %}
                     </td>
+                    {% endif %}
                   </tr>
                   {% endif %}
                 {% endfor %}
