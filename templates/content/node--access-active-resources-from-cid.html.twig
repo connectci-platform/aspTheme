@@ -567,7 +567,15 @@
   {% if has_top_software or has_software_list_url or has_sds_card or ood_software|length > 0 %}
     <div id="rp-software" class="rp-top-software mb-8">
       <hr class="rp-section-rule">
-      <h2 class="flex items-center gap-2"><i class="bi bi-terminal"></i> Software</h2>
+      {# Optional link to the RP's own software documentation. #}
+      {% set software_link = node.field_rp_software_link.0 %}
+      <h2 class="flex items-center gap-2"><i class="bi bi-terminal"></i> Software
+        {% if software_link.uri|default('') %}
+          <a href="{{ software_link.uri }}" class="no-underline">
+            <i class="bi bi-book text-md-teal"></i>
+          </a>
+        {% endif %}
+      </h2>
 
       <div class="grid grid-cols-1 gap-8 md--grid-cols-[1fr_25%]">
 
@@ -576,7 +584,15 @@
           {% if has_top_software %}
             <div class="rp-top-software-table">
             <p class="text-sm text-dark-gray mb-3">The following software packages are among the most frequently used on {{ node.label }}, based on job data from <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
-            <h3 class="text-teal font-bold">Most Frequently Used</h3>
+            {# Optional link to the RP's own most-used software documentation. #}
+            {% set freq_used_software_link = node.field_rp_freq_used_software_link.0 %}
+            <h3 class="flex items-center gap-2 text-teal font-bold">Most Frequently Used
+              {% if freq_used_software_link.uri|default('') %}
+                <a href="{{ freq_used_software_link.uri }}" class="no-underline">
+                  <i class="bi bi-book text-md-teal"></i>
+                </a>
+              {% endif %}
+            </h3>
             {# Clamp to N rows with a More/Less toggle. Written out here rather
                than via the expandable_text() Twig function: that function funnels
                a captured string through #markup and Xss::filterAdmin() would
@@ -696,7 +712,15 @@
   {% if field_rp_storage_items|length > 0 or external_storage %}
     <div id="rp-storage" class="rp-storage mb-8">
       <hr class="rp-section-rule">
-      <h2 class="flex items-center gap-2"><i class="bi bi-database"></i> Storage</h2>
+      {# Optional link to the RP's own storage documentation. #}
+      {% set storage_link = node.field_rp_storage_link.0 %}
+      <h2 class="flex items-center gap-2"><i class="bi bi-database"></i> Storage
+        {% if storage_link.uri|default('') %}
+          <a href="{{ storage_link.uri }}" class="no-underline">
+            <i class="bi bi-book text-md-teal"></i>
+          </a>
+        {% endif %}
+      </h2>
 
       {% set storage_text = node.field_rp_storage_text.value %}
       {% if storage_text %}
@@ -942,7 +966,15 @@
   {% if field_rp_datasets_items|length > 0 %}
     <div id="rp-datasets" class="rp-datasets mb-8">
       <hr class="rp-section-rule">
-      <h2 class="flex items-center gap-2"><i class="bi bi-table"></i> Datasets</h2>
+      {# Optional link to the RP's own datasets documentation. #}
+      {% set datasets_link = node.field_rp_datasets_link.0 %}
+      <h2 class="flex items-center gap-2"><i class="bi bi-table"></i> Datasets
+        {% if datasets_link.uri|default('') %}
+          <a href="{{ datasets_link.uri }}" class="no-underline">
+            <i class="bi bi-book text-md-teal"></i>
+          </a>
+        {% endif %}
+      </h2>
       {% set datasets_text = node.field_rp_datasets_text.value %}
       {% if datasets_text %}
         <div class="prose max-w-none mb-4">
