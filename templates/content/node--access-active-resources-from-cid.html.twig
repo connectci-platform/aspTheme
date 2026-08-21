@@ -228,7 +228,7 @@
   {# --- Jump-to anchor nav (full-width, sticky) --- #}
   {% if has_login or has_file_transfer or has_storage or has_jobs or has_software or has_datasets %}
     <nav class="rp-jump-to mb-6 py-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" aria-label="Jump to section">
-      <span class="text-dark-gray">Jump to:</span>
+      <span class="text-dark-gray">Jump to information about:</span>
       {% if has_jobs %}
         <a href="#rp-jobs" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-card-checklist"></i> Jobs</a>
       {% endif %}
@@ -254,7 +254,7 @@
   {% set jobs_info = node.field_rp_jobs_info.value %}
   {% if field_rp_queue_specs_items|length > 0 or jobs_info %}
     <div id="rp-jobs" class="rp-queue-specs mb-8">
-      <h2 class="flex items-center gap-2"><i class="bi bi-card-checklist"></i> Jobs</h2>
+      <h2 class="flex items-center gap-2"><i class="bi bi-card-checklist"></i> Submitting Jobs</h2>
       {% if jobs_info %}
         <div class="prose max-w-none mb-6">
           {{ expandable_text(node.field_rp_jobs_info.processed, 3) }}
@@ -290,6 +290,9 @@
                     <div class="font-normal text-xs text-dark-gray">30-day trend</div>
                   </th>
                   <th class="text-left py-2 font-semibold align-bottom">Wall Time
+                    <div class="font-normal text-xs text-dark-gray">30-day trend</div>
+                  </th>
+                  <th class="text-left py-2 font-semibold align-bottom">Max Wall Time
                     <div class="font-normal text-xs text-dark-gray">30-day trend</div>
                   </th>
                 </tr>
@@ -452,6 +455,13 @@
                         {% if max_wall is not null %}
                           <span class="text-xs" style="color:#c0392b" aria-hidden="true">max {{ max_wall_label }}</span>
                         {% endif %}
+                      {% endif %}
+                    </td>
+                    <td class="py-2 align-top">
+                      {% if max_wall is not null %}
+                        {{ max_wall_label }}
+                      {% else %}
+                        <span class="text-dark-gray" aria-label="No data">&mdash;</span>
                       {% endif %}
                     </td>
                   </tr>
