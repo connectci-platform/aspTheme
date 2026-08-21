@@ -68,6 +68,40 @@
     {# ========== Main Content Column ========== #}
     <div class="rp-main-content">
 
+      {% set has_login = field_rp_ssh_login_nodes_items|length > 0 or ondemand_url %}
+      {% set has_file_transfer = field_rp_file_transfer_items|length > 0 %}
+      {% set has_storage = field_rp_storage_items|length > 0 or external_storage %}
+      {% set has_jobs = field_rp_queue_specs_items|length > 0 or node.field_rp_jobs_info.value %}
+      {% set has_software = top_software|length > 0 %}
+      {% set has_datasets = field_rp_datasets_items|length > 0 %}
+
+      {# account_setup is used by the sidebar CTA; declared here, rendered in Login block at bottom of page #}
+      {% set account_setup = node.field_rp_account_setup_url %}
+
+      {# --- Jump-to anchor nav (full-width, sticky) --- #}
+      {% if has_login or has_file_transfer or has_storage or has_jobs or has_software or has_datasets %}
+        <nav class="rp-jump-to mb-6 py-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" aria-label="Jump to section">
+          {% if has_jobs %}
+            <a href="#rp-jobs" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-card-checklist"></i> Submitting Jobs</a>
+          {% endif %}
+          {% if has_software %}
+            <a href="#rp-software" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-terminal"></i> Software</a>
+          {% endif %}
+          {% if has_datasets %}
+            <a href="#rp-datasets" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-table"></i> Datasets</a>
+          {% endif %}
+          {% if has_storage %}
+            <a href="#rp-storage" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-database"></i> Storage</a>
+          {% endif %}
+          {% if has_file_transfer %}
+            <a href="#rp-file-transfer" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-arrow-left-right"></i> File Transfer</a>
+          {% endif %}
+          {% if has_login %}
+            <a href="#rp-login" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-box-arrow-in-right"></i> Login</a>
+          {% endif %}
+        </nav>
+      {% endif %}
+
       {{ title_prefix }}
       {% if account_required %}
         <div class="flex flex-wrap items-center gap-4 mb-4 justify-between">
@@ -91,16 +125,6 @@
       <div class="rp-chatbot max-w-none mb-8">
         <div class="embedded-qa-bot" data-resource-context="{{ resource_context }}"></div>
       </div>
-
-      {% set has_login = field_rp_ssh_login_nodes_items|length > 0 or ondemand_url %}
-      {% set has_file_transfer = field_rp_file_transfer_items|length > 0 %}
-      {% set has_storage = field_rp_storage_items|length > 0 or external_storage %}
-      {% set has_jobs = field_rp_queue_specs_items|length > 0 or node.field_rp_jobs_info.value %}
-      {% set has_software = top_software|length > 0 %}
-      {% set has_datasets = field_rp_datasets_items|length > 0 %}
-
-      {# account_setup is used by the sidebar CTA; declared here, rendered in Login block at bottom of page #}
-      {% set account_setup = node.field_rp_account_setup_url %}
 
     </div>{# /.rp-main-content #}
 
@@ -224,31 +248,6 @@
     </div>{# /.rp-sidebar (top) #}
 
   </div>{# /.grid (top section) #}
-
-  {# --- Jump-to anchor nav (full-width, sticky) --- #}
-  {% if has_login or has_file_transfer or has_storage or has_jobs or has_software or has_datasets %}
-    <nav class="rp-jump-to mb-6 py-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" aria-label="Jump to section">
-      <span class="text-dark-gray">Jump to information about:</span>
-      {% if has_jobs %}
-        <a href="#rp-jobs" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-card-checklist"></i> Jobs</a>
-      {% endif %}
-      {% if has_software %}
-        <a href="#rp-software" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-terminal"></i> Software</a>
-      {% endif %}
-      {% if has_datasets %}
-        <a href="#rp-datasets" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-table"></i> Datasets</a>
-      {% endif %}
-      {% if has_storage %}
-        <a href="#rp-storage" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-database"></i> Storage</a>
-      {% endif %}
-      {% if has_file_transfer %}
-        <a href="#rp-file-transfer" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-arrow-left-right"></i> File Transfer</a>
-      {% endif %}
-      {% if has_login %}
-        <a href="#rp-login" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-box-arrow-in-right"></i> Login</a>
-      {% endif %}
-    </nav>
-  {% endif %}
 
   {# ========== Jobs / Queue Specifications (full width) ========== #}
   {% set jobs_info = node.field_rp_jobs_info.value %}
@@ -500,6 +499,14 @@
             <div class="rp-top-software-table">
             <p class="text-sm text-dark-gray mb-3">The following software packages are among the most frequently used on {{ node.label }}, based on job data from <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
             <h3 class="text-teal font-bold">Most Frequently Used</h3>
+            {# Clamp to N rows with a More/Less toggle. Written out here rather
+               than via the expandable_text() Twig function: that function funnels
+               a captured string through #markup and Xss::filterAdmin() would
+               strip inline markup out of the cells. data-rows makes the JS clamp
+               on a row boundary. #}
+            {{ attach_library('expandable_text/expandable_text') }}
+            <div class="expandable-text" data-rows="5">
+            <div class="expandable-text__content" id="rp-top-software-content">
             <div class="overflow-x-auto">
               <table class="w-full border-collapse">
                 <thead>
@@ -528,6 +535,8 @@
                 </tbody>
               </table>
             </div>
+            </div>{# /.expandable-text__content #}
+            </div>{# /.expandable-text #}
             </div>{# /.rp-top-software-table #}
           {% else %}
             <p class="text-sm text-dark-gray">No software usage data is currently reported for {{ node.label }} in <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
