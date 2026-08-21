@@ -657,7 +657,12 @@
                   <td class="py-2 pr-4">{{ paragraph.field_rp_fs_path.value|default('') }}</td>
                   <td class="py-2 pr-4">
                     {% set quota_inode = paragraph.field_rp_quota_inode_amount.value %}
-                    {{ fmt.gb_size(paragraph.field_rp_quota_size.value) }}{% if quota_inode %}, {{ quota_inode|number_format }} files{% endif %}
+                    {% set quota_size = fmt.gb_size(paragraph.field_rp_quota_size.value)|trim %}
+                    {%- if quota_size or quota_inode -%}
+                      {{ quota_size }}{% if quota_inode %}{% if quota_size %}, {% endif %}{{ quota_inode|number_format }} files{% endif %}
+                    {%- else -%}
+                      See notes
+                    {%- endif -%}
                   </td>
                   <td class="py-2 pr-4">{{ paragraph.field_rp_purge.value|default('') }}</td>
                   <td class="py-2 pr-4">{{ paragraph.field_rp_backup.value|default('') }}</td>
@@ -715,7 +720,7 @@
             <tr>
               <th class="text-left py-2 pr-4 font-semibold">Supported Methods</th>
               <th class="text-left py-2 pr-4 font-semibold">Data Transfer Node</th>
-              <th class="text-left py-2 font-semibold">URL</th>
+              <th class="text-left py-2 font-semibold">Notes</th>
             </tr>
           </thead>
           <tbody>
