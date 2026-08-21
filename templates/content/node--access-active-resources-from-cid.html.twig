@@ -273,6 +273,15 @@
           {% if queue_metrics_updated %}
             <p class="text-xs text-dark-gray mb-2">Metrics updated {{ queue_metrics_updated }}</p>
           {% endif %}
+          {# Clamp the queue list to N rows with a More/Less toggle. The wrapper
+             markup is written out here rather than going through the
+             expandable_text() Twig function: that function funnels a captured
+             string through #markup, and Xss::filterAdmin() would strip the
+             sparkline <svg> and the inline style attributes out of the metric
+             cells. data-rows makes the JS clamp on a row boundary. #}
+          {{ attach_library('expandable_text/expandable_text') }}
+          <div class="expandable-text" data-rows="4">
+          <div class="expandable-text__content" id="rp-queue-specs-content">
           <div class="overflow-x-auto">
             <table class="w-full border-collapse">
               <thead>
@@ -470,6 +479,8 @@
               </tbody>
             </table>
           </div>
+          </div>{# /.expandable-text__content #}
+          </div>{# /.expandable-text #}
           {% endif %}
         </div>
       {% endif %}
