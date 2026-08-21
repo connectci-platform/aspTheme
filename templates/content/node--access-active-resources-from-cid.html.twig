@@ -738,7 +738,15 @@
         {% endif %}
       {% endfor %}
       {% if has_storage_rows %}
-        <h3 class="text-teal font-bold">File System</h3>
+        {# Optional link to the RP's own file system documentation. #}
+        {% set file_system_link = node.field_rp_file_system_link.0 %}
+        <h3 class="flex items-center gap-2 text-teal font-bold">File System
+          {% if file_system_link.uri|default('') %}
+            <a href="{{ file_system_link.uri }}" class="no-underline">
+              <i class="bi bi-book text-md-teal"></i>
+            </a>
+          {% endif %}
+        </h3>
         <div class="overflow-x-auto">
           <table class="w-full border-collapse">
             <thead>
@@ -779,7 +787,15 @@
 
       {# External Storage #}
       {% if external_storage %}
-        <h3 class="text-teal font-bold mt-6">External Storage</h3>
+        {# Optional link to the RP's own external storage documentation. #}
+        {% set external_storage_link = node.field_rp_external_storage_link.0 %}
+        <h3 class="flex items-center gap-2 text-teal font-bold mt-6">External Storage
+          {% if external_storage_link.uri|default('') %}
+            <a href="{{ external_storage_link.uri }}" class="no-underline">
+              <i class="bi bi-book text-md-teal"></i>
+            </a>
+          {% endif %}
+        </h3>
         <div class="prose max-w-none mb-8">
           {{ expandable_text(node.field_rp_external_storage.processed, 3) }}
         </div>
@@ -792,7 +808,15 @@
   {% if field_rp_file_transfer_items|length > 0 %}
     <div id="rp-file-transfer" class="rp-file-transfer mb-8">
       <hr class="rp-section-rule">
-      <h2 class="flex items-center gap-2"><i class="bi bi-arrow-left-right"></i> File Transfer</h2>
+      {# Optional link to the RP's own file transfer documentation. #}
+      {% set file_transfer_link = node.field_rp_file_transfer_link.0 %}
+      <h2 class="flex items-center gap-2"><i class="bi bi-arrow-left-right"></i> File Transfer
+        {% if file_transfer_link.uri|default('') %}
+          <a href="{{ file_transfer_link.uri }}" class="no-underline">
+            <i class="bi bi-book text-md-teal"></i>
+          </a>
+        {% endif %}
+      </h2>
       {% set file_transfer_text = node.field_rp_file_transfer_text.value %}
       {% if file_transfer_text %}
         <div class="prose max-w-none mb-4">
@@ -863,7 +887,15 @@
   {% if ssh_logins|length > 0 or ondemand_url or login_text or login_help|length > 0 or account_setup|length > 0 or mfa_required %}
     <div id="rp-login" class="rp-login mb-8">
       <hr class="rp-section-rule">
-      <h2 class="flex items-center gap-2"><i class="bi bi-box-arrow-in-right"></i> Login to {{ node.label }}</h2>
+      {# Optional link to the RP's own login documentation. #}
+      {% set login_doc_link = node.field_rp_login_to_anvil_gpu_link.0 %}
+      <h2 class="flex items-center gap-2"><i class="bi bi-box-arrow-in-right"></i> Login to {{ node.label }}
+        {% if login_doc_link.uri|default('') %}
+          <a href="{{ login_doc_link.uri }}" class="no-underline">
+            <i class="bi bi-book text-md-teal"></i>
+          </a>
+        {% endif %}
+      </h2>
 
       {% if mfa_required %}
         <p class="flex items-center gap-1 text-sm mb-4">
@@ -909,7 +941,15 @@
           {% endfor %}
 
           <div class="border-2 border-dark-teal p-4">
-            <h3 class="text-lg font-bold mt-0 mb-3">SSH Login</h3>
+            {# Optional link to the RP's own SSH login documentation. #}
+            {% set ssh_login_link = node.field_rp_ssh_login_link.0 %}
+            <h3 class="flex items-center gap-2 text-lg font-bold mt-0 mb-3">SSH Login
+              {% if ssh_login_link.uri|default('') %}
+                <a href="{{ ssh_login_link.uri }}" class="no-underline">
+                  <i class="bi bi-book text-md-teal"></i>
+                </a>
+              {% endif %}
+            </h3>
             {# Only surface the user's real RP username in the ssh command once
                the account is provisioned. While sp_state is pending-active the
                account panel above says "being set up", so don't imply a usable
@@ -936,7 +976,15 @@
         {# OnDemand Login #}
         {% if ondemand_url %}
           <div class="border-2 border-dark-teal p-4">
-            <h3 class="text-lg font-bold mt-0 mb-3">ACCESS OnDemand Login</h3>
+            {# Optional link to the RP's own OnDemand login documentation. #}
+            {% set ood_login_link = node.field_rp_access_ood_login_link.0 %}
+            <h3 class="flex items-center gap-2 text-lg font-bold mt-0 mb-3">ACCESS OnDemand Login
+              {% if ood_login_link.uri|default('') %}
+                <a href="{{ ood_login_link.uri }}" class="no-underline">
+                  <i class="bi bi-book text-md-teal"></i>
+                </a>
+              {% endif %}
+            </h3>
             <a href="{{ ondemand_url }}" class="btn btn-primary">
               {{ ondemand.title|default('LOGIN')|upper }}
             </a>
