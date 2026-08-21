@@ -288,21 +288,19 @@
                 <tr>
                   <th class="text-left py-2 pr-4 font-semibold align-bottom">Name</th>
                   <th class="text-left py-2 pr-4 font-semibold align-bottom">Purpose</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Nodes</th>
                   <th class="text-left py-2 pr-4 font-semibold align-bottom">CPU cores / node</th>
                   <th class="text-left py-2 pr-4 font-semibold align-bottom">GPUs / node</th>
+                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Num nodes</th>
                   <th class="text-left py-2 pr-4 font-semibold align-bottom">Node RAM</th>
-                  <th class="text-right py-2 pr-4 font-semibold align-bottom">Jobs
-                    <div class="font-normal text-xs text-dark-gray">30 days</div>
-                  </th>
+                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Max wallclock</th>
                   <th class="text-left py-2 pr-4 font-semibold align-bottom">Wait Time
                     <div class="font-normal text-xs text-dark-gray">30-day trend</div>
                   </th>
-                  <th class="text-left py-2 font-semibold align-bottom">Wall Time
+                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Wall Time
                     <div class="font-normal text-xs text-dark-gray">30-day trend</div>
                   </th>
-                  <th class="text-left py-2 font-semibold align-bottom">Max Wall Time
-                    <div class="font-normal text-xs text-dark-gray">30-day trend</div>
+                  <th class="text-right py-2 font-semibold align-bottom">Number of jobs run
+                    <div class="font-normal text-xs text-dark-gray">30 days</div>
                   </th>
                 </tr>
               </thead>
@@ -329,19 +327,6 @@
                     <td class="py-2 pr-4 font-semibold align-top">{{ qname }}</td>
                     <td class="py-2 pr-4 text-sm align-top">
                       {{ paragraph.field_rp_queue_purpose.value|default('') }}
-                    </td>
-                    <td class="py-2 pr-4 align-top">
-                      {# An unknown node count may be left blank or stored as 0;
-                         treat both as "not reported" rather than showing 0.
-                         An empty integer field's .value resolves to [] in Twig,
-                         so coerce any iterable to its first scalar first. #}
-                      {% set node_count = paragraph.field_rp_node_count.value %}
-                      {% if node_count is iterable %}{% set node_count = node_count|first %}{% endif %}
-                      {% if node_count is not null and node_count != '' and node_count > 0 %}
-                        {{ node_count|number_format }}
-                      {% else %}
-                        <span class="text-dark-gray">&mdash;</span>
-                      {% endif %}
                     </td>
                     <td class="py-2 pr-4 align-top">
                       {# Empty integer/text fields resolve to [] in Twig; coerce
@@ -373,13 +358,26 @@
                       {% endif %}
                     </td>
                     <td class="py-2 pr-4 align-top">
-                      {{ fmt.gb_size(paragraph.field_rp_vram.value) }}
-                    </td>
-                    <td class="py-2 pr-4 text-right align-top">
-                      {% if qmetrics and qmetrics.job_count is not null %}
-                        {{ qmetrics.job_count|number_format(0) }}
+                      {# An unknown node count may be left blank or stored as 0;
+                         treat both as "not reported" rather than showing 0.
+                         An empty integer field's .value resolves to [] in Twig,
+                         so coerce any iterable to its first scalar first. #}
+                      {% set node_count = paragraph.field_rp_node_count.value %}
+                      {% if node_count is iterable %}{% set node_count = node_count|first %}{% endif %}
+                      {% if node_count is not null and node_count != '' and node_count > 0 %}
+                        {{ node_count|number_format }}
                       {% else %}
                         <span class="text-dark-gray">&mdash;</span>
+                      {% endif %}
+                    </td>
+                    <td class="py-2 pr-4 align-top">
+                      {{ fmt.gb_size(paragraph.field_rp_vram.value) }}
+                    </td>
+                    <td class="py-2 pr-4 align-top">
+                      {% if max_wall is not null %}
+                        {{ max_wall_label }}
+                      {% else %}
+                        <span class="text-dark-gray" aria-label="No data">&mdash;</span>
                       {% endif %}
                     </td>
                     <td class="py-2 pr-4 align-top">
@@ -414,7 +412,7 @@
                         <span class="text-dark-gray" aria-label="No data">&mdash;</span>
                       {% endif %}
                     </td>
-                    <td class="py-2 align-top">
+                    <td class="py-2 pr-4 align-top">
                       {% if qmetrics and qmetrics.daily_wall|default([])|length > 1 %}
                         {% set vals = qmetrics.daily_wall %}
                         {% set avg = qmetrics.wall_time %}
@@ -466,11 +464,11 @@
                         {% endif %}
                       {% endif %}
                     </td>
-                    <td class="py-2 align-top">
-                      {% if max_wall is not null %}
-                        {{ max_wall_label }}
+                    <td class="py-2 text-right align-top">
+                      {% if qmetrics and qmetrics.job_count is not null %}
+                        {{ qmetrics.job_count|number_format(0) }}
                       {% else %}
-                        <span class="text-dark-gray" aria-label="No data">&mdash;</span>
+                        <span class="text-dark-gray">&mdash;</span>
                       {% endif %}
                     </td>
                   </tr>
