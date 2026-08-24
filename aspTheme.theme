@@ -139,7 +139,6 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
     $variables['node'] = $node;
   }
   $node = $variables['node'];
-  $variables['resource_display_name'] = operations_cider_resource_display_name($node);
 
   // Parse top software JSON into a render-ready array.
   $variables['top_software'] = [];

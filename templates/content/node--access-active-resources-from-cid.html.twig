@@ -148,14 +148,14 @@
         <div class="bg-dark-teal text-white p-4 mb-4 rp-account-panel"
              data-rp-nid="{{ node.id }}"
              {% if rp_panel_state == 'rows_stale' and user_rp_sp_state != 'pending-active' %}data-stale="1"{% endif %}>
-          <h3 class="mt-0 text-lg font-bold text-white">YOUR ACCOUNT ON {{ node.label|upper }}</h3>
+          <h3 class="mt-0 text-lg font-bold text-white">YOUR ACCOUNT ON {{ resource_display_name|upper }}</h3>
           {% if user_rp_sp_state == 'pending-active' %}
             {# The RP side is still provisioning the account (sp_state
                pending-active), so hold off on the username and account details
                until it settles. (pending-inactive means the account is being
                deactivated and has account_state inactive, so it never loads
                here — it falls through to normal/no-panel handling.) #}
-            <p class="text-sm text-white mb-3">Your account is being set up on {{ node.label }}. Check back soon.</p>
+            <p class="text-sm text-white mb-3">Your account is being set up on {{ resource_display_name }}. Check back soon.</p>
           {% else %}
             {% if user_rp_username %}
               <p class="text-sm text-white mb-3">Username: <strong class="text-white">{{ user_rp_username }}</strong></p>
@@ -196,7 +196,7 @@
              data-rp-nid="{{ node.id }}"
              data-state="{{ rp_panel_state }}">
           <div class="mb-3">
-            <h3 class="mt-0 text-lg font-bold text-white">YOUR ACCOUNT ON {{ node.label|upper }}</h3>
+            <h3 class="mt-0 text-lg font-bold text-white">YOUR ACCOUNT ON {{ resource_display_name|upper }}</h3>
             <p class="text-sm">Loading account info…</p>
           </div>
         </div>
@@ -207,7 +207,7 @@
            allocations CTA (matches the JS no-account fallback). #}
         <div class="bg-dark-teal text-white p-4 mb-4">
           <div class="mb-3">
-            <h3 class="mt-0 text-lg font-bold text-white">GET AN ACCOUNT ON {{ node.label|upper }}</h3>
+            <h3 class="mt-0 text-lg font-bold text-white">GET AN ACCOUNT ON {{ resource_display_name|upper }}</h3>
             {% if account_setup|length > 0 %}
               <a href="{{ account_setup.0.uri|replace({'internal:': ''}) }}" class="text-white text-sm no-underline hover--underline hover--text-white leading-tight">
                 {{ account_setup.0.title ?: 'RP Account Setup' }} <i class="bi bi-arrow-right"></i>
@@ -479,7 +479,7 @@
         <div class="rp-software-main">
           {% if has_top_software %}
             <div class="rp-top-software-table">
-            <p class="text-sm text-dark-gray mb-3">The following software packages are among the most frequently used on {{ node.label }}, based on job data from <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
+            <p class="text-sm text-dark-gray mb-3">The following software packages are among the most frequently used on {{ resource_display_name }}, based on job data from <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
             <h3 class="text-teal font-bold">Most Frequently Used</h3>
             <div class="overflow-x-auto">
               <table class="w-full border-collapse">
@@ -511,13 +511,13 @@
             </div>
             </div>{# /.rp-top-software-table #}
           {% else %}
-            <p class="text-sm text-dark-gray">No software usage data is currently reported for {{ node.label }} in <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
+            <p class="text-sm text-dark-gray">No software usage data is currently reported for {{ resource_display_name }} in <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
           {% endif %}
           {% if ood_software|length > 0 %}
             <div class="rp-ood-software">
             <h3 class="text-teal font-bold mt-6">Available via ACCESS OnDemand</h3>
             {# Link to the resource's OnDemand instance (the existing field_rp_ondemand_url, already set up as ondemand_url). #}
-            <p class="text-sm text-dark-gray mb-3">Software available through {% if ondemand_url %}<a href="{{ ondemand_url }}" class="text-md-teal no-underline hover--underline">ACCESS OnDemand on {{ node.label }}</a>{% else %}ACCESS OnDemand on {{ node.label }}{% endif %}.</p>
+            <p class="text-sm text-dark-gray mb-3">Software available through {% if ondemand_url %}<a href="{{ ondemand_url }}" class="text-md-teal no-underline hover--underline">ACCESS OnDemand on {{ resource_display_name }}</a>{% else %}ACCESS OnDemand on {{ resource_display_name }}{% endif %}.</p>
             <div class="overflow-x-auto">
               <table class="w-full border-collapse">
                 <thead>
@@ -554,7 +554,7 @@
           {% set software_list_url = node.field_rp_software_list_url.0 %}
           {% if software_list_url or sds_has_software and sds_resource_name %}
             <div class="bg-dark-teal text-white p-4 mb-4">
-              <h3 class="mt-0 text-lg font-bold text-white">SEE ALL SOFTWARE AVAILABLE ON {{ node.label|upper }}</h3>
+              <h3 class="mt-0 text-lg font-bold text-white">SEE ALL SOFTWARE AVAILABLE ON {{ resource_display_name|upper }}</h3>
               <ul class="list-none p-0 m-0 font-normal">
                 {% if sds_has_software and sds_resource_name %}
                   <li class="mb-2 pl-0 leading-tight">
@@ -564,7 +564,7 @@
                   </li>
                 {% else %}
                   <li class="mb-2 pl-0">
-                    <p class="text-sm text-white m-0">{{ node.label }} is not currently reporting available software to the <a href="https://sds.access-ci.org" class="text-white underline hover--underline hover--text-white">Software Documentation Service</a>.</p>
+                    <p class="text-sm text-white m-0">{{ resource_display_name }} is not currently reporting available software to the <a href="https://sds.access-ci.org" class="text-white underline hover--underline hover--text-white">Software Documentation Service</a>.</p>
                   </li>
                 {% endif %}
 
@@ -762,7 +762,7 @@
   {% if ssh_logins|length > 0 or ondemand_url or login_text or login_help|length > 0 or account_setup|length > 0 or mfa_required %}
     <div id="rp-login" class="rp-login mb-8">
       <hr class="rp-section-rule">
-      <h2 class="flex items-center gap-2"><i class="bi bi-box-arrow-in-right"></i> Login to {{ node.label }}</h2>
+      <h2 class="flex items-center gap-2"><i class="bi bi-box-arrow-in-right"></i> Login to {{ resource_display_name }}</h2>
 
       {% if mfa_required %}
         <p class="flex items-center gap-1 text-sm mb-4">
