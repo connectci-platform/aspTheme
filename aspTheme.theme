@@ -139,6 +139,7 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
     $variables['node'] = $node;
   }
   $node = $variables['node'];
+  $variables['resource_display_name'] = operations_cider_resource_display_name($node);
 
   // Parse top software JSON into a render-ready array.
   $variables['top_software'] = [];
@@ -204,7 +205,7 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
     $slug = preg_replace('/-(?:gpu|cpu|ai|storage|em|rm|lm|ps|ocean)$/', '', $slug);
     if (!empty($slug)) {
       $variables['sds_resource_name'] = $slug;
-      $variables['sds_resource_label'] = $node->label();
+      $variables['sds_resource_label'] = operations_cider_resource_display_name($node);
     }
   }
 
@@ -230,7 +231,7 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
     $variables['resource_context'] = \Drupal\Component\Utility\Html::getClass($parent_group->getTitle());
   }
   else {
-    $variables['resource_context'] = \Drupal\Component\Utility\Html::getClass($node->getTitle());
+    $variables['resource_context'] = \Drupal\Component\Utility\Html::getClass(operations_cider_resource_display_name($node));
   }
 
   // Per-user account panel data. See RpAccountService for the state enum.
@@ -359,11 +360,8 @@ function aspTheme_preprocess_views_view_fields__rp_documentation_index(&$variabl
           $description = mb_strlen($text) > 200 ? mb_substr($text, 0, 200) . '...' : $text;
         }
       }
-      $short = $resource->hasField('field_cider_short_name') && !$resource->get('field_cider_short_name')->isEmpty()
-        ? $resource->get('field_cider_short_name')->value
-        : NULL;
       $resources[] = [
-        'title' => $short ?: $resource->label(),
+        'title' => operations_cider_resource_display_name($resource),
         'url' => \Drupal::service('path_alias.manager')->getAliasByPath('/node/' . $resource->id()),
         'description' => $description,
       ];
@@ -390,11 +388,8 @@ function aspTheme_preprocess_views_view_fields__rp_documentation_index(&$variabl
         $description = mb_strlen($text) > 200 ? mb_substr($text, 0, 200) . '...' : $text;
       }
     }
-    $short = $node->hasField('field_cider_short_name') && !$node->get('field_cider_short_name')->isEmpty()
-      ? $node->get('field_cider_short_name')->value
-      : NULL;
     $variables['rp_individual_resource'] = [
-      'title' => $short ?: $node->label(),
+      'title' => operations_cider_resource_display_name($node),
       'url' => \Drupal::service('path_alias.manager')->getAliasByPath('/node/' . $node->id()),
       'description' => $description,
     ];
@@ -425,11 +420,8 @@ function aspTheme_preprocess_node__resource_group(&$variables) {
           $description = mb_strlen($text) > 200 ? mb_substr($text, 0, 200) . '...' : $text;
         }
       }
-      $short = $resource->hasField('field_cider_short_name') && !$resource->get('field_cider_short_name')->isEmpty()
-        ? $resource->get('field_cider_short_name')->value
-        : NULL;
       $resources[] = [
-        'title' => $short ?: $resource->label(),
+        'title' => operations_cider_resource_display_name($resource),
         'url' => \Drupal::service('path_alias.manager')->getAliasByPath('/node/' . $resource->id()),
         'description' => $description,
       ];
