@@ -36,3 +36,11 @@ node:
   version: 1.x
   js:
     js/rp-account-panel.js: {}
+
+software-pager:
+  version: 1.x
+  js:
+    js/rp-software-pager.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
