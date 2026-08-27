@@ -49,11 +49,13 @@
    where the application name links:
      'sds'      -> the SDS website's software page (top-software behavior)
      'web_page' -> the software's own site (OnDemand behavior)
-   Both only link when the entry has a web_page. table_id is optional and is
-   only needed where something (the pager's aria-controls) points at it. #}
-{% macro software_table(rows, link_mode, table_id) %}
-  <div class="overflow-x-auto">
-    <table class="w-full border-collapse"{% if table_id %} id="{{ table_id }}"{% endif %}>
+   Both only link when the entry has a web_page. wrapper_class is optional; the
+   SDS call site uses it to make this element the scroll box (it has to be the
+   same element as the overflow-x, or the sticky header is captured by a
+   nested scroll container). #}
+{% macro software_table(rows, link_mode, wrapper_class) %}
+  <div class="{{ wrapper_class|default('') }}">
+    <table class="w-full border-collapse">
       <thead>
         <tr>
           <th class="text-left py-2 pr-4 font-semibold">Application</th>
@@ -117,11 +119,17 @@
          and had drifted: nodes with only an SDS list, only an OnDemand list,
          only a software_list_url or only the sidebar card rendered the
          section with no nav link pointing at it. #}
+      {# Slug for the SDS website's ?installed_on= parameter. SDS can only
+         filter by group, so prefer the group name SDS itself reports
+         (sds_rp_name) and fall back to the one derived from the group title.
+         Set once here so the section gate and the sidebar CTA below cannot
+         drift apart. #}
+      {% set sds_slug = sds_rp_name|default(sds_resource_name) %}
       {% set has_software = top_software|length > 0
         or sds_software|length > 0
         or ood_software|length > 0
         or node.field_rp_software_list_url.0 is not null
-        or (sds_has_software and sds_resource_name) %}
+        or (sds_has_software and sds_slug) %}
       {% set has_datasets = field_rp_datasets_items|length > 0 %}
 
       {# account_setup is used by the sidebar CTA; declared here, rendered in Login block at bottom of page #}
@@ -382,7 +390,7 @@
           {{ attach_library('expandable_text/expandable_text') }}
           <div class="expandable-text" data-rows="4">
           <div class="expandable-text__content" id="rp-queue-specs-content">
-          <div class="overflow-x-auto">
+          <div>
             <table class="w-full border-collapse">
               <thead>
                 <tr>
@@ -648,7 +656,7 @@
             {{ attach_library('expandable_text/expandable_text') }}
             <div class="expandable-text" data-rows="5">
             <div class="expandable-text__content" id="rp-top-software-content">
-            <div class="overflow-x-auto">
+            <div>
               <table class="w-full border-collapse">
                 <thead>
                   <tr>
@@ -682,31 +690,23 @@
           {% elseif sds_software|length > 0 %}
             {# No XDMoD job data, but SDS reports a catalog for this resource.
                No Jobs column — SDS carries no usage counts. #}
-            {% set sds_page_size = 25 %}
-            {% set sds_initial_rows = 5 %}
-            {% set sds_page_count = (sds_software|length / sds_page_size)|round(0, 'ceil') %}
-            {{ attach_library('aspTheme/software-pager') }}
+            {{ attach_library('aspTheme/software-table') }}
             <div class="rp-sds-software-table">
             <p class="text-sm text-dark-gray mb-3">The following software is reported as available on {{ node.label }} by the <a href="https://sds.access-ci.org" class="text-md-teal no-underline hover--underline">Software Documentation Service</a>.</p>
             <h3 class="text-teal font-bold">Available Software</h3>
-            {# All rows are server-rendered visible; rp-software-pager.js
-               collapses to data-initial-rows on attach, so the list stays
-               readable with JS off. #}
-            <div class="rp-sds-software" data-page-size="{{ sds_page_size }}" data-initial-rows="{{ sds_initial_rows }}">
-              {{ fmt.software_table(sds_software, 'sds', 'rp-sds-software-table') }}
-              <button type="button" class="rp-sds-software__more mt-3 text-md-teal underline cursor-pointer bg-transparent border-0 p-0" aria-expanded="false" aria-controls="rp-sds-software-table">More</button>
-              {% if sds_page_count > 1 %}
-                <nav class="rp-sds-software__pager mt-3 flex flex-wrap gap-2" aria-label="Software pages" hidden>
-                  {% for page in 1..sds_page_count %}
-                    <button type="button" data-page="{{ page }}" class="px-2 py-1 text-sm cursor-pointer bg-transparent border border-solid border-light-gray"{% if page == 1 %} aria-current="page"{% endif %}>{{ page }}</button>
-                  {% endfor %}
-                </nav>
-              {% endif %}
-              <div class="visually-hidden" role="status" aria-live="polite"></div>
+            <div class="rp-sds-software" data-total="{{ sds_software|length }}">
+              {# Rendered hidden and un-hidden by rp-software-filter.js, so no-JS
+                 visitors never see a dead input. #}
+              <div class="rp-sds-software__filter-wrap mb-3" hidden>
+                <label class="sr-only" for="rp-sds-software-filter">Filter software by name</label>
+                <input type="search" id="rp-sds-software-filter" class="rp-sds-software__filter border border-solid border-light-gray px-2 py-1 text-sm w-full" placeholder="Filter by name" autocomplete="off">
+              </div>
+              {{ fmt.software_table(sds_software, 'sds', 'rp-software-scroll') }}
+              <p class="rp-sds-software__empty text-sm text-dark-gray mt-3" hidden>No software matches that name.</p>
+              {# Kept in the DOM from first render — injected live regions
+                 announce unreliably. #}
+              <div class="sr-only" role="status" aria-live="polite"></div>
             </div>
-            {% if sds_software_total > sds_software|length %}
-              <p class="text-sm text-dark-gray mt-3">Showing the first {{ sds_software|length|number_format }} of {{ sds_software_total|number_format }} software packages. <a href="https://sds.access-ci.org{% if sds_resource_name %}/?installed_on={{ sds_resource_name }}{% endif %}" class="text-md-teal no-underline hover--underline">See the full list in the Software Documentation Service</a>.</p>
-            {% endif %}
             </div>{# /.rp-sds-software-table #}
           {% else %}
             <p class="text-sm text-dark-gray">No software usage data is currently reported for {{ node.label }} in <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
@@ -725,14 +725,16 @@
         <div class="rp-software-sidebar">
           {# Software CTA: RP's official software page #}
           {% set software_list_url = node.field_rp_software_list_url.0 %}
-          {% if software_list_url or sds_has_software and sds_resource_name %}
+          {# sds_slug is set near has_software above. The link text names the
+             group rather than implying SDS is filtered to this resource. #}
+          {% if software_list_url or sds_has_software and sds_slug %}
             <div class="bg-dark-teal text-white p-4 mb-4">
               <h3 class="mt-0 text-lg font-bold text-white">SEE ALL SOFTWARE AVAILABLE ON {{ node.label|upper }}</h3>
               <ul class="list-none p-0 m-0 font-normal">
-                {% if sds_has_software and sds_resource_name %}
+                {% if sds_has_software and sds_slug %}
                   <li class="mb-2 pl-0 leading-tight">
-                    <a href="https://sds.access-ci.org/?installed_on={{ sds_resource_name }}" class="text-white text-sm no-underline hover--underline hover--text-white leading-tight">
-                      Explore in Access Software Documentation Service <i class="bi bi-arrow-right"></i>
+                    <a href="https://sds.access-ci.org/?installed_on={{ sds_slug|url_encode }}" class="text-white text-sm no-underline hover--underline hover--text-white leading-tight">
+                      Explore all {{ sds_resource_label|default('ACCESS') }} software in the Software Documentation Service <i class="bi bi-arrow-right"></i>
                     </a>
                   </li>
                 {% else %}
@@ -798,7 +800,7 @@
             </a>
           {% endif %}
         </h3>
-        <div class="overflow-x-auto">
+        <div>
           <table class="w-full border-collapse">
             <thead>
               <tr>
@@ -891,7 +893,7 @@
       {{ attach_library('expandable_text/expandable_text') }}
       <div class="expandable-text" data-rows="3">
       <div class="expandable-text__content" id="rp-file-transfer-content">
-      <div class="overflow-x-auto">
+      <div>
         <table class="w-full border-collapse">
           <thead>
             <tr>
@@ -1097,7 +1099,7 @@
       {{ attach_library('expandable_text/expandable_text') }}
       <div class="expandable-text" data-rows="2">
       <div class="expandable-text__content" id="rp-datasets-content">
-      <div class="overflow-x-auto">
+      <div>
         <table class="w-full border-collapse">
           <thead>
             <tr>

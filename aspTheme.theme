@@ -225,6 +225,13 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
   $sds_available = \Drupal::state()->get('operations_cider.sds_available', []);
   $variables['sds_has_software'] = !empty($sds_available[(int) $node->id()]);
 
+  // The group slug SDS itself reports, recorded by the same weekly sweep. It
+  // is authoritative where the derivation above only guesses (SDS calls the
+  // Bridges-2 group "bridges-2", not "bridges2"); sds_resource_name stays as
+  // the fallback until the first sweep after deploy.
+  $sds_rp_names = \Drupal::state()->get('operations_cider.sds_rp_name', []);
+  $variables['sds_rp_name'] = $sds_rp_names[(int) $node->id()] ?? NULL;
+
   // Parse queue metrics JSON and build a lookup keyed by queue name.
   $variables['queue_metrics'] = [];
   $variables['queue_metrics_updated'] = NULL;
