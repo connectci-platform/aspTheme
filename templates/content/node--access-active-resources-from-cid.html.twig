@@ -182,7 +182,10 @@
 
       {# --- Embedded Chatbot --- #}
       <div class="rp-chatbot max-w-none mb-8">
-        <div class="embedded-qa-bot" data-resource-context="{{ resource_context }}"></div>
+        <div class="embedded-qa-bot"
+             data-scope-slug="{{ resource_slug }}"
+             data-header-title="Ask about {{ resource_display_name }}"
+             data-input-placeholder="Ask your questions here"></div>
       </div>
 
     </div>{# /.rp-main-content #}
