@@ -565,7 +565,7 @@ html:has(body.page-node-type-access-active-resources-from-cid) {
       line-height: 1.2;
     }
     a {
-      text-transform: uppercase;
+      text-transform: capitalize;
       font-stretch: 75%;
       font-weight: 700;
       font-size: 0.875rem;
