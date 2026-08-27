@@ -250,6 +250,7 @@ module.exports = {
     'inline-block',
     'inline-flex',
     'inset-x-1/4',
+    'italic',
     'items-start',
     'items-center',
     'items-end',
