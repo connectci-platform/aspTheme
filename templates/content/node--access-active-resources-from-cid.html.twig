@@ -49,10 +49,14 @@
    where the application name links:
      'sds'      -> the SDS website's software page (top-software behavior)
      'web_page' -> the software's own site (OnDemand behavior)
-   Both only link when the entry has a web_page. wrapper_class is optional; the
-   SDS call site uses it to make this element the scroll box (it has to be the
-   same element as the overflow-x, or the sticky header is captured by a
-   nested scroll container). #}
+   Both only link when the entry has a web_page. In 'web_page' mode the value
+   is used as the href directly, so it is gated on an http(s) scheme first:
+   web_page comes from the SDS feed and from editor-authored OOD JSON, and
+   Twig's html autoescaping does not neutralise a javascript:/data: URI in an
+   href. An entry whose web_page fails the gate renders as plain text.
+   wrapper_class is optional; the SDS call site uses it to make this element
+   the scroll box (it has to be the same element as the overflow-x, or the
+   sticky header is captured by a nested scroll container). #}
 {% macro software_table(rows, link_mode, wrapper_class) %}
   <div class="{{ wrapper_class|default('') }}">
     <table class="w-full border-collapse">
@@ -67,12 +71,10 @@
         {% for sw in rows %}
           <tr>
             <td class="py-2 pr-4 font-semibold whitespace-nowrap">
-              {%- if sw.web_page -%}
-                {%- if link_mode == 'sds' -%}
-                  <a href="https://sds.access-ci.org/?software={{ sw.name|replace({' ': '_'})|url_encode }}" class="text-md-teal no-underline hover--underline">{{ sw.name }}</a>
-                {%- else -%}
-                  <a href="{{ sw.web_page }}" class="text-md-teal no-underline hover--underline">{{ sw.name }}</a>
-                {%- endif -%}
+              {%- if sw.web_page and link_mode == 'sds' -%}
+                <a href="https://sds.access-ci.org/?software={{ sw.name|replace({' ': '_'})|url_encode }}" class="text-md-teal no-underline hover--underline">{{ sw.name }}</a>
+              {%- elseif sw.web_page and sw.web_page matches '#^https?://#i' -%}
+                <a href="{{ sw.web_page }}" class="text-md-teal no-underline hover--underline">{{ sw.name }}</a>
               {%- else -%}
                 {{ sw.name }}
               {%- endif -%}
