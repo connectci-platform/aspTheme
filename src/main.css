@@ -798,25 +798,24 @@ body.page-node-type-access-active-resources-from-cid {
 .webform-element-description {
   color: #232323;
 }
-.tools-research-studies {
-  .views-row {
-    @apply pt-12;
+
+.page-node-type-tools-case-study {
+  .layout__region--first h2 {
+    @apply mt-8 mb-2;
   }
+  .layout__region--second {
+    @apply text-sm;
+    a {
+      @apply font-normal;
+    }
+  }
+}
+
+.tools-research-studies {
   .views-row:first-child {
     background: url('/themes/contrib/asp-theme/images/tools-researcher-stories/tools-shapes.svg') no-repeat top right;
     background-size: 350px;
-  }
-  .views-row:nth-child(3n+2) {
-    background: url('/themes/contrib/asp-theme/images/tools-researcher-stories/tri-y.svg') no-repeat top right;
-    background-size: 50px;
-  }
-  .views-row:nth-child(3n+3) {
-    background: url('/themes/contrib/asp-theme/images/tools-researcher-stories/quart-t.svg') no-repeat top right;
-    background-size: 50px;
-  }
-  .views-row:nth-child(3n+4) {
-    background: url('/themes/contrib/asp-theme/images/tools-researcher-stories/lines-o.svg') no-repeat top right;
-    background-size: 50px;
+    padding-top: 3.25rem;
   }
 
   .project-summary {
@@ -887,9 +886,9 @@ article.node--type-tools-case-study {
   }
 }
 
+.tcs-researchers-block__name,
 .tcs-researchers-block__institution {
-  font-size: 0.8rem;
-  line-height: 1.1;
+  line-height: 1.4;
 }
 
 /* Keep the menu from widening its grid column: CSS Grid items default to
