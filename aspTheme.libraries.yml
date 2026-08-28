@@ -36,3 +36,14 @@ node:
   version: 1.x
   js:
     js/rp-account-panel.js: {}
+
+software-table:
+  version: 1.x
+  css:
+    theme:
+      src/css/rp-software.css: {}
+  js:
+    js/rp-software-filter.js: {}
+  dependencies:
+    - core/drupal
+    - core/once
