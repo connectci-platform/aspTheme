@@ -244,13 +244,13 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
     }
   }
 
-  // Resource context name for the embedded QA bot — uses the parent Group's
+  // Resource slug for the embedded QA bot — uses the parent Group's
   // title if available, otherwise the resource's own title.
   if ($parent_group) {
-    $variables['resource_context'] = \Drupal\Component\Utility\Html::getClass($parent_group->getTitle());
+    $variables['resource_slug'] = \Drupal\Component\Utility\Html::getClass($parent_group->getTitle());
   }
   else {
-    $variables['resource_context'] = \Drupal\Component\Utility\Html::getClass($node->getTitle());
+    $variables['resource_slug'] = \Drupal\Component\Utility\Html::getClass($node->getTitle());
   }
 
   // Per-user account panel data. See RpAccountService for the state enum.
