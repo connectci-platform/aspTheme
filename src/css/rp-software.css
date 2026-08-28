@@ -1,0 +1,25 @@
+/* Scroll box for the SDS software table: about five rows tall, with the
+   column headers pinned. The max-height and the overflow live on the same
+   element as the macro's overflow-x, because a nested scroll container would
+   capture `position: sticky` and break the pinned header. */
+.rp-software-scroll {
+  max-height: 22rem;
+  overflow-y: auto;
+}
+
+.rp-software-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: #fff;
+  /* border-collapse drops borders on sticky cells; inset shadow keeps the rule. */
+  box-shadow: inset 0 -1px 0 #d9d9d9;
+}
+
+/* Full width on narrow screens, capped on wide ones. Done here rather than
+   with a Tailwind width utility because the theme's Tailwind output is
+   prebuilt and carries no w-64. */
+.rp-sds-software__filter {
+  max-width: 16rem;
+  box-sizing: border-box;
+}

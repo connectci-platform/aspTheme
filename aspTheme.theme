@@ -158,6 +158,19 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
     }
   }
 
+  // Parse the SDS software list, unwrapping the {total, items} envelope.
+  // total is the pre-cap count, so the template can tell a truncated list
+  // from one that happens to be exactly at the cap.
+  $variables['sds_software'] = [];
+  $variables['sds_software_total'] = 0;
+  if ($node->hasField('field_rp_sds_software') && !$node->get('field_rp_sds_software')->isEmpty()) {
+    $decoded = json_decode($node->get('field_rp_sds_software')->value, TRUE);
+    if (is_array($decoded) && isset($decoded['items']) && is_array($decoded['items'])) {
+      $variables['sds_software'] = $decoded['items'];
+      $variables['sds_software_total'] = (int) ($decoded['total'] ?? count($decoded['items']));
+    }
+  }
+
   // Pre-load paragraph data to avoid $ref->entity NULL issues.
   $paragraph_storage = \Drupal::entityTypeManager()->getStorage('paragraph');
   $paragraph_fields = [
@@ -211,6 +224,13 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
   // Check if SDS has software data for this resource (set by weekly cron).
   $sds_available = \Drupal::state()->get('operations_cider.sds_available', []);
   $variables['sds_has_software'] = !empty($sds_available[(int) $node->id()]);
+
+  // The group slug SDS itself reports, recorded by the same weekly sweep. It
+  // is authoritative where the derivation above only guesses (SDS calls the
+  // Bridges-2 group "bridges-2", not "bridges2"); sds_resource_name stays as
+  // the fallback until the first sweep after deploy.
+  $sds_rp_names = \Drupal::state()->get('operations_cider.sds_rp_name', []);
+  $variables['sds_rp_name'] = $sds_rp_names[(int) $node->id()] ?? NULL;
 
   // Parse queue metrics JSON and build a lookup keyed by queue name.
   $variables['queue_metrics'] = [];

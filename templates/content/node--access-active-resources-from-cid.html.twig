@@ -43,6 +43,50 @@
   {%- if gb % 1000 == 0 -%}{{ gb // 1000 }} TB{%- else -%}{{ gb }} GB{%- endif -%}
 {%- endif -%}
 {% endmacro %}
+
+{# Three-column software table (Application / Description / Research
+   Discipline). Shared by the SDS and OnDemand lists, which differ only in
+   where the application name links:
+     'sds'      -> the SDS website's software page (top-software behavior)
+     'web_page' -> the software's own site (OnDemand behavior)
+   Both only link when the entry has a web_page. In 'web_page' mode the value
+   is used as the href directly, so it is gated on an http(s) scheme first:
+   web_page comes from the SDS feed and from editor-authored OOD JSON, and
+   Twig's html autoescaping does not neutralise a javascript:/data: URI in an
+   href. An entry whose web_page fails the gate renders as plain text.
+   wrapper_class is optional; the SDS call site uses it to make this element
+   the scroll box (it has to be the same element as the overflow-x, or the
+   sticky header is captured by a nested scroll container). #}
+{% macro software_table(rows, link_mode, wrapper_class) %}
+  <div class="{{ wrapper_class|default('') }}">
+    <table class="w-full border-collapse">
+      <thead>
+        <tr>
+          <th class="text-left py-2 pr-4 font-semibold">Application</th>
+          <th class="text-left py-2 pr-4 font-semibold">Description</th>
+          <th class="text-left py-2 font-semibold">Research Discipline</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sw in rows %}
+          <tr>
+            <td class="py-2 pr-4 font-semibold whitespace-nowrap">
+              {%- if sw.web_page and link_mode == 'sds' -%}
+                <a href="https://sds.access-ci.org/?software={{ sw.name|replace({' ': '_'})|url_encode }}" class="text-md-teal no-underline hover--underline">{{ sw.name }}</a>
+              {%- elseif sw.web_page and sw.web_page matches '#^https?://#i' -%}
+                <a href="{{ sw.web_page }}" class="text-md-teal no-underline hover--underline">{{ sw.name }}</a>
+              {%- else -%}
+                {{ sw.name }}
+              {%- endif -%}
+            </td>
+            <td class="py-2 pr-4 text-sm">{{ sw.description|default('') }}</td>
+            <td class="py-2 text-sm">{{ sw.research_field|default('') }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endmacro %}
 {% import _self as fmt %}
 
 {# Extract field values for easier access in the template #}
@@ -68,6 +112,55 @@
     {# ========== Main Content Column ========== #}
     <div class="rp-main-content">
 
+      {% set has_login = field_rp_ssh_login_nodes_items|length > 0 or ondemand_url %}
+      {% set has_file_transfer = field_rp_file_transfer_items|length > 0 %}
+      {% set has_storage = field_rp_storage_items|length > 0 or external_storage %}
+      {% set has_jobs = field_rp_queue_specs_items|length > 0 or node.field_rp_jobs_info.value %}
+      {# One definition for both the jump-to nav link and the Software section
+         itself. They used to be hand-maintained copies of the same condition
+         and had drifted: nodes with only an SDS list, only an OnDemand list,
+         only a software_list_url or only the sidebar card rendered the
+         section with no nav link pointing at it. #}
+      {# Slug for the SDS website's ?installed_on= parameter. SDS can only
+         filter by group, so prefer the group name SDS itself reports
+         (sds_rp_name) and fall back to the one derived from the group title.
+         Set once here so the section gate and the sidebar CTA below cannot
+         drift apart. #}
+      {% set sds_slug = sds_rp_name|default(sds_resource_name) %}
+      {% set has_software = top_software|length > 0
+        or sds_software|length > 0
+        or ood_software|length > 0
+        or node.field_rp_software_list_url.0 is not null
+        or (sds_has_software and sds_slug) %}
+      {% set has_datasets = field_rp_datasets_items|length > 0 %}
+
+      {# account_setup is used by the sidebar CTA; declared here, rendered in Login block at bottom of page #}
+      {% set account_setup = node.field_rp_account_setup_url %}
+
+      {# --- Jump-to anchor nav (full-width, sticky) --- #}
+      {% if has_login or has_file_transfer or has_storage or has_jobs or has_software or has_datasets %}
+        <nav class="rp-jump-to mb-6 py-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" aria-label="Jump to section">
+          {% if has_jobs %}
+            <a href="#rp-jobs" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-card-checklist"></i> Submitting Jobs</a>
+          {% endif %}
+          {% if has_software %}
+            <a href="#rp-software" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-terminal"></i> Software</a>
+          {% endif %}
+          {% if has_storage %}
+            <a href="#rp-storage" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-database"></i> Storage</a>
+          {% endif %}
+          {% if has_file_transfer %}
+            <a href="#rp-file-transfer" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-arrow-left-right"></i> File Transfer</a>
+          {% endif %}
+          {% if has_login %}
+            <a href="#rp-login" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-box-arrow-in-right"></i> Login</a>
+          {% endif %}
+          {% if has_datasets %}
+            <a href="#rp-datasets" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-table"></i> Datasets</a>
+          {% endif %}
+        </nav>
+      {% endif %}
+
       {{ title_prefix }}
       {% if account_required %}
         <div class="flex flex-wrap items-center gap-4 mb-4 justify-between">
@@ -83,7 +176,7 @@
       {# --- Description --- #}
       {% if rp_description %}
         <div class="rp-description prose max-w-none mb-8">
-          {{ expandable_text(node.field_rp_description.processed, 6) }}
+          {{ expandable_text(node.field_rp_description.processed, 3) }}
         </div>
       {% endif %}
 
@@ -91,16 +184,6 @@
       <div class="rp-chatbot max-w-none mb-8">
         <div class="embedded-qa-bot" data-resource-context="{{ resource_context }}"></div>
       </div>
-
-      {% set has_login = field_rp_ssh_login_nodes_items|length > 0 or ondemand_url %}
-      {% set has_file_transfer = field_rp_file_transfer_items|length > 0 %}
-      {% set has_storage = field_rp_storage_items|length > 0 or external_storage %}
-      {% set has_jobs = field_rp_queue_specs_items|length > 0 or node.field_rp_jobs_info.value %}
-      {% set has_software = top_software|length > 0 %}
-      {% set has_datasets = field_rp_datasets_items|length > 0 %}
-
-      {# account_setup is used by the sidebar CTA; declared here, rendered in Login block at bottom of page #}
-      {% set account_setup = node.field_rp_account_setup_url %}
 
     </div>{# /.rp-main-content #}
 
@@ -225,73 +308,116 @@
 
   </div>{# /.grid (top section) #}
 
-  {# --- Jump-to anchor nav (full-width, sticky) --- #}
-  {% if has_login or has_file_transfer or has_storage or has_jobs or has_software or has_datasets %}
-    <nav class="rp-jump-to mb-6 py-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" aria-label="Jump to section">
-      <span class="text-dark-gray">Jump to:</span>
-      {% if has_jobs %}
-        <a href="#rp-jobs" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-card-checklist"></i> Jobs</a>
-      {% endif %}
-      {% if has_software %}
-        <a href="#rp-software" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-terminal"></i> Software</a>
-      {% endif %}
-      {% if has_datasets %}
-        <a href="#rp-datasets" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-table"></i> Datasets</a>
-      {% endif %}
-      {% if has_storage %}
-        <a href="#rp-storage" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-database"></i> Storage</a>
-      {% endif %}
-      {% if has_file_transfer %}
-        <a href="#rp-file-transfer" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-arrow-left-right"></i> File Transfer</a>
-      {% endif %}
-      {% if has_login %}
-        <a href="#rp-login" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-box-arrow-in-right"></i> Login</a>
-      {% endif %}
-    </nav>
-  {% endif %}
-
   {# ========== Jobs / Queue Specifications (full width) ========== #}
   {% set jobs_info = node.field_rp_jobs_info.value %}
   {% if field_rp_queue_specs_items|length > 0 or jobs_info %}
     <div id="rp-jobs" class="rp-queue-specs mb-8">
-      <h2 class="flex items-center gap-2"><i class="bi bi-card-checklist"></i> Jobs</h2>
+      {# Optional link to the RP's own job submission documentation. #}
+      {% set submitting_jobs_link = node.field_rp_submitting_jobs.0 %}
+      <div class="flex items-baseline gap-4 flex-wrap">
+        <h2 class="flex items-center gap-2"><i class="bi bi-card-checklist"></i>
+          Submitting Jobs
+          {% if submitting_jobs_link.uri|default('') %}
+            <a href="{{ submitting_jobs_link.uri }}" class="no-underline">
+              <i class="bi bi-book text-md-teal"></i>
+            </a>
+          {% endif %}
+        </h2>
+      </div>
       {% if jobs_info %}
         <div class="prose max-w-none mb-6">
-          {{ expandable_text(node.field_rp_jobs_info.processed, 6) }}
+          {{ expandable_text(node.field_rp_jobs_info.processed, 3) }}
         </div>
       {% endif %}
       {# Only render if at least one queue has a name, otherwise the heading
          and column headers show above an empty body. #}
+      {# The same pass also flags which optional columns have data in at least
+         one row; a column empty across every row is dropped from the table
+         entirely rather than rendering a full column of "N/A". Empty
+         integer/text fields resolve to [] in Twig, so coerce to scalar first. #}
       {% set has_queue_rows = false %}
+      {% set col_purpose = false %}
+      {% set col_cpu = false %}
+      {% set col_gpu = false %}
+      {% set col_nodes = false %}
+      {% set col_ram = false %}
+      {% set col_max_wall = false %}
+      {% set col_wait = false %}
+      {% set col_wall = false %}
+      {% set col_jobs = false %}
       {% for paragraph in field_rp_queue_specs_items %}
-        {% if paragraph.field_rp_queue_name.value|default('') %}
+        {% set qname = paragraph.field_rp_queue_name.value|default('') %}
+        {% if qname %}
           {% set has_queue_rows = true %}
+          {% set qm = queue_metrics[qname] ?? null %}
+          {% if paragraph.field_rp_queue_purpose.value|default('') %}{% set col_purpose = true %}{% endif %}
+          {% set v = paragraph.field_rp_cpus.value %}{% if v is iterable %}{% set v = v|first %}{% endif %}
+          {% set n = paragraph.field_rp_cpu_count.value %}{% if n is iterable %}{% set n = n|first %}{% endif %}
+          {% if v or (n and n > 0) %}{% set col_cpu = true %}{% endif %}
+          {% set v = paragraph.field_rp_gpus.value %}{% if v is iterable %}{% set v = v|first %}{% endif %}
+          {% set n = paragraph.field_rp_gpu_vram.value %}{% if n is iterable %}{% set n = n|first %}{% endif %}
+          {% set c = paragraph.field_rp_gpu_count.value %}{% if c is iterable %}{% set c = c|first %}{% endif %}
+          {% if v or n or (c and c > 0) %}{% set col_gpu = true %}{% endif %}
+          {% set v = paragraph.field_rp_node_count.value %}{% if v is iterable %}{% set v = v|first %}{% endif %}
+          {% if v is not null and v != '' and v > 0 %}{% set col_nodes = true %}{% endif %}
+          {% set v = paragraph.field_rp_vram.value %}{% if v is iterable %}{% set v = v|first %}{% endif %}
+          {% if v is not null and v != '' %}{% set col_ram = true %}{% endif %}
+          {% set v = paragraph.field_rp_max_wall_time.value %}{% if v is iterable %}{% set v = v|first %}{% endif %}
+          {% if v is not empty %}{% set col_max_wall = true %}{% endif %}
+          {% if qm and (qm.wait_time is not null or qm.daily_wait|default([])|length > 0) %}{% set col_wait = true %}{% endif %}
+          {% if qm and (qm.wall_time is not null or qm.daily_wall|default([])|length > 0) %}{% set col_wall = true %}{% endif %}
+          {% if qm and qm.job_count is not null %}{% set col_jobs = true %}{% endif %}
         {% endif %}
       {% endfor %}
       {% if has_queue_rows %}
-        <h3>Queue specifications</h3>
+        <h3>
+          Queue specifications
+          {# Optional link to the RP's own queue documentation. #}
+          {% set queue_spec_link = node.field_rp_queue_spec_link.0 %}
+          {% if queue_spec_link.uri|default('') %}
+            <a href="{{ queue_spec_link.uri }}" class="no-underline text-dark-teal">
+               <i class="bi bi-book text-md-teal"></i>
+            </a>
+          {% endif %}
+        </h3>
           {% if queue_metrics_updated %}
             <p class="text-xs text-dark-gray mb-2">Metrics updated {{ queue_metrics_updated }}</p>
           {% endif %}
-          <div class="overflow-x-auto">
+          {# Clamp the queue list to N rows with a More/Less toggle. The wrapper
+             markup is written out here rather than going through the
+             expandable_text() Twig function: that function funnels a captured
+             string through #markup, and Xss::filterAdmin() would strip the
+             sparkline <svg> and the inline style attributes out of the metric
+             cells. data-rows makes the JS clamp on a row boundary. #}
+          {{ attach_library('expandable_text/expandable_text') }}
+          <div class="expandable-text" data-rows="4">
+          <div class="expandable-text__content" id="rp-queue-specs-content">
+          <div>
             <table class="w-full border-collapse">
               <thead>
                 <tr>
                   <th class="text-left py-2 pr-4 font-semibold align-bottom">Name</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Purpose</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Nodes</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">CPU cores / node</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">GPUs / node</th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Node RAM</th>
-                  <th class="text-right py-2 pr-4 font-semibold align-bottom">Jobs
-                    <div class="font-normal text-xs text-dark-gray">30 days</div>
-                  </th>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Wait Time
-                    <div class="font-normal text-xs text-dark-gray">30-day trend</div>
-                  </th>
-                  <th class="text-left py-2 font-semibold align-bottom">Wall Time
-                    <div class="font-normal text-xs text-dark-gray">30-day trend</div>
-                  </th>
+                  {% if col_purpose %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Purpose</th>{% endif %}
+                  {% if col_cpu %}<th class="text-left py-2 pr-4 font-semibold align-bottom">CPU cores / node</th>{% endif %}
+                  {% if col_gpu %}<th class="text-left py-2 pr-4 font-semibold align-bottom">GPUs / node</th>{% endif %}
+                  {% if col_nodes %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Num nodes</th>{% endif %}
+                  {% if col_ram %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Node RAM</th>{% endif %}
+                  {% if col_max_wall %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Max wallclock</th>{% endif %}
+                  {% if col_wait %}
+                    <th class="text-left py-2 pr-4 font-semibold align-bottom">Wait time
+                      <div class="font-normal text-xs text-dark-gray">30-day trend</div>
+                    </th>
+                  {% endif %}
+                  {% if col_wall %}
+                    <th class="text-left py-2 pr-4 font-semibold align-bottom">Wall time
+                      <div class="font-normal text-xs text-dark-gray">30-day trend</div>
+                    </th>
+                  {% endif %}
+                  {% if col_jobs %}
+                    <th class="text-right py-2 font-semibold align-bottom">Number of jobs run
+                      <div class="font-normal text-xs text-dark-gray">30 days</div>
+                    </th>
+                  {% endif %}
                 </tr>
               </thead>
               <tbody>
@@ -315,22 +441,13 @@
                   {% endif %}
                   <tr>
                     <td class="py-2 pr-4 font-semibold align-top">{{ qname }}</td>
+                    {% if col_purpose %}
                     <td class="py-2 pr-4 text-sm align-top">
-                      {{ paragraph.field_rp_queue_purpose.value|default('') }}
+                      {% set qpurpose = paragraph.field_rp_queue_purpose.value|default('') %}
+                      {% if qpurpose %}{{ qpurpose }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}
                     </td>
-                    <td class="py-2 pr-4 align-top">
-                      {# An unknown node count may be left blank or stored as 0;
-                         treat both as "not reported" rather than showing 0.
-                         An empty integer field's .value resolves to [] in Twig,
-                         so coerce any iterable to its first scalar first. #}
-                      {% set node_count = paragraph.field_rp_node_count.value %}
-                      {% if node_count is iterable %}{% set node_count = node_count|first %}{% endif %}
-                      {% if node_count is not null and node_count != '' and node_count > 0 %}
-                        {{ node_count|number_format }}
-                      {% else %}
-                        <span class="text-dark-gray">&mdash;</span>
-                      {% endif %}
-                    </td>
+                    {% endif %}
+                    {% if col_cpu %}
                     <td class="py-2 pr-4 align-top">
                       {# Empty integer/text fields resolve to [] in Twig; coerce
                          to first scalar so blank counts don't render as 0. #}
@@ -341,12 +458,14 @@
                       {% if cpu_type or (cpu_count and cpu_count > 0) %}
                         {{ cpu_type|default('') }}{% if cpu_count and cpu_count > 0 %} ({{ cpu_count }} cores){% endif %}
                       {% else %}
-                        <span class="text-dark-gray">&mdash;</span>
+                        <span class="text-dark-gray">N/A</span>
                       {% endif %}
                     </td>
+                    {% endif %}
+                    {% if col_gpu %}
                     <td class="py-2 pr-4 align-top">
                       {# Show GPU type/vRAM even when the per-node count is blank;
-                         the count is an optional prefix. Em-dash only when the
+                         the count is an optional prefix. N/A only when the
                          whole cell is empty. Coerce [] (empty field) to scalar. #}
                       {% set gpu_count = paragraph.field_rp_gpu_count.value %}
                       {% if gpu_count is iterable %}{% set gpu_count = gpu_count|first %}{% endif %}
@@ -357,19 +476,41 @@
                       {% if gpu_type or gpu_vram or (gpu_count and gpu_count > 0) %}
                         {% if gpu_count and gpu_count > 0 %}{{ gpu_count }} {% endif %}{{ gpu_type|default('') }}{% if gpu_vram %} ({{ gpu_vram }} GB vRAM){% endif %}
                       {% else %}
-                        <span class="text-dark-gray">&mdash;</span>
+                        <span class="text-dark-gray">N/A</span>
                       {% endif %}
                     </td>
+                    {% endif %}
+                    {% if col_nodes %}
                     <td class="py-2 pr-4 align-top">
-                      {{ fmt.gb_size(paragraph.field_rp_vram.value) }}
-                    </td>
-                    <td class="py-2 pr-4 text-right align-top">
-                      {% if qmetrics and qmetrics.job_count is not null %}
-                        {{ qmetrics.job_count|number_format(0) }}
+                      {# An unknown node count may be left blank or stored as 0;
+                         treat both as "not reported" rather than showing 0.
+                         An empty integer field's .value resolves to [] in Twig,
+                         so coerce any iterable to its first scalar first. #}
+                      {% set node_count = paragraph.field_rp_node_count.value %}
+                      {% if node_count is iterable %}{% set node_count = node_count|first %}{% endif %}
+                      {% if node_count is not null and node_count != '' and node_count > 0 %}
+                        {{ node_count|number_format }}
                       {% else %}
-                        <span class="text-dark-gray">&mdash;</span>
+                        <span class="text-dark-gray">N/A</span>
                       {% endif %}
                     </td>
+                    {% endif %}
+                    {% if col_ram %}
+                    <td class="py-2 pr-4 align-top">
+                      {% set node_ram = fmt.gb_size(paragraph.field_rp_vram.value)|trim %}
+                      {% if node_ram %}{{ node_ram }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}
+                    </td>
+                    {% endif %}
+                    {% if col_max_wall %}
+                    <td class="py-2 pr-4 align-top">
+                      {% if max_wall is not null %}
+                        {{ max_wall_label }}
+                      {% else %}
+                        <span class="text-dark-gray" aria-label="Not applicable">N/A</span>
+                      {% endif %}
+                    </td>
+                    {% endif %}
+                    {% if col_wait %}
                     <td class="py-2 pr-4 align-top">
                       {% if qmetrics and qmetrics.daily_wait|default([])|length > 1 %}
                         {% set vals = qmetrics.daily_wait %}
@@ -399,10 +540,12 @@
                         {{ qmetrics.wait_time|number_format(1) }}
                         <span class="sr-only">hours</span>
                       {% else %}
-                        <span class="text-dark-gray" aria-label="No data">&mdash;</span>
+                        <span class="text-dark-gray" aria-label="Not applicable">N/A</span>
                       {% endif %}
                     </td>
-                    <td class="py-2 align-top">
+                    {% endif %}
+                    {% if col_wall %}
+                    <td class="py-2 pr-4 align-top">
                       {% if qmetrics and qmetrics.daily_wall|default([])|length > 1 %}
                         {% set vals = qmetrics.daily_wall %}
                         {% set avg = qmetrics.wall_time %}
@@ -448,30 +591,48 @@
                           <span class="text-xs" style="color:#c0392b" aria-hidden="true"> · max {{ max_wall_label }}</span>
                         {% endif %}
                       {% else %}
-                        <span class="text-dark-gray" aria-label="No data">&mdash;</span>
+                        <span class="text-dark-gray" aria-label="Not applicable">N/A</span>
                         {% if max_wall is not null %}
                           <span class="text-xs" style="color:#c0392b" aria-hidden="true">max {{ max_wall_label }}</span>
                         {% endif %}
                       {% endif %}
                     </td>
+                    {% endif %}
+                    {% if col_jobs %}
+                    <td class="py-2 text-right align-top">
+                      {% if qmetrics and qmetrics.job_count is not null %}
+                        {{ qmetrics.job_count|number_format(0) }}
+                      {% else %}
+                        <span class="text-dark-gray">N/A</span>
+                      {% endif %}
+                    </td>
+                    {% endif %}
                   </tr>
                   {% endif %}
                 {% endfor %}
               </tbody>
             </table>
           </div>
+          </div>{# /.expandable-text__content #}
+          </div>{# /.expandable-text #}
           {% endif %}
         </div>
       {% endif %}
 
   {# ========== Software (full width) ========== #}
   {% set has_top_software = top_software|length > 0 %}
-  {% set has_software_list_url = node.field_rp_software_list_url.0 is not null %}
-  {% set has_sds_card = sds_has_software and sds_resource_name %}
-  {% if has_top_software or has_software_list_url or has_sds_card or ood_software|length > 0 %}
+  {% if has_software %}
     <div id="rp-software" class="rp-top-software mb-8">
       <hr class="rp-section-rule">
-      <h2 class="flex items-center gap-2"><i class="bi bi-terminal"></i> Software</h2>
+      {# Optional link to the RP's own software documentation. #}
+      {% set software_link = node.field_rp_software_link.0 %}
+      <h2 class="flex items-center gap-2"><i class="bi bi-terminal"></i> Software
+        {% if software_link.uri|default('') %}
+          <a href="{{ software_link.uri }}" class="no-underline">
+            <i class="bi bi-book text-md-teal"></i>
+          </a>
+        {% endif %}
+      </h2>
 
       <div class="grid grid-cols-1 gap-8 md--grid-cols-[1fr_25%]">
 
@@ -480,8 +641,24 @@
           {% if has_top_software %}
             <div class="rp-top-software-table">
             <p class="text-sm text-dark-gray mb-3">The following software packages are among the most frequently used on {{ node.label }}, based on job data from <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
-            <h3 class="text-teal font-bold">Most Frequently Used</h3>
-            <div class="overflow-x-auto">
+            {# Optional link to the RP's own most-used software documentation. #}
+            {% set freq_used_software_link = node.field_rp_freq_used_software_link.0 %}
+            <h3 class="flex items-center gap-2 text-teal font-bold">Most Frequently Used
+              {% if freq_used_software_link.uri|default('') %}
+                <a href="{{ freq_used_software_link.uri }}" class="no-underline">
+                  <i class="bi bi-book text-md-teal"></i>
+                </a>
+              {% endif %}
+            </h3>
+            {# Clamp to N rows with a More/Less toggle. Written out here rather
+               than via the expandable_text() Twig function: that function funnels
+               a captured string through #markup and Xss::filterAdmin() would
+               strip inline markup out of the cells. data-rows makes the JS clamp
+               on a row boundary. #}
+            {{ attach_library('expandable_text/expandable_text') }}
+            <div class="expandable-text" data-rows="5">
+            <div class="expandable-text__content" id="rp-top-software-content">
+            <div>
               <table class="w-full border-collapse">
                 <thead>
                   <tr>
@@ -496,7 +673,7 @@
                     <tr>
                       <td class="py-2 pr-4 font-semibold whitespace-nowrap">
                         {%- if software.web_page -%}
-                          <a href="{{ software.web_page }}" class="text-md-teal no-underline hover--underline">{{ software.name }}</a>
+                          <a href="https://sds.access-ci.org/?software={{ software.name|replace({' ': '_'})|url_encode }}" class="text-md-teal no-underline hover--underline">{{ software.name }}</a>
                         {%- else -%}
                           {{ software.name }}
                         {%- endif -%}
@@ -509,7 +686,30 @@
                 </tbody>
               </table>
             </div>
+            </div>{# /.expandable-text__content #}
+            </div>{# /.expandable-text #}
             </div>{# /.rp-top-software-table #}
+          {% elseif sds_software|length > 0 %}
+            {# No XDMoD job data, but SDS reports a catalog for this resource.
+               No Jobs column — SDS carries no usage counts. #}
+            {{ attach_library('aspTheme/software-table') }}
+            <div class="rp-sds-software-table">
+            <p class="text-sm text-dark-gray mb-3">The following software is reported as available on {{ node.label }} by the <a href="https://sds.access-ci.org" class="text-md-teal no-underline hover--underline">Software Documentation Service</a>.</p>
+            <h3 class="text-teal font-bold">Available Software</h3>
+            <div class="rp-sds-software" data-total="{{ sds_software|length }}">
+              {# Rendered hidden and un-hidden by rp-software-filter.js, so no-JS
+                 visitors never see a dead input. #}
+              <div class="rp-sds-software__filter-wrap mb-3" hidden>
+                <label class="sr-only" for="rp-sds-software-filter">Filter software by name</label>
+                <input type="search" id="rp-sds-software-filter" class="rp-sds-software__filter border border-solid border-light-gray px-2 py-1 text-sm w-full" placeholder="Filter by name" autocomplete="off">
+              </div>
+              {{ fmt.software_table(sds_software, 'sds', 'rp-software-scroll') }}
+              <p class="rp-sds-software__empty text-sm text-dark-gray mt-3" hidden>No software matches that name.</p>
+              {# Kept in the DOM from first render — injected live regions
+                 announce unreliably. #}
+              <div class="sr-only" role="status" aria-live="polite"></div>
+            </div>
+            </div>{# /.rp-sds-software-table #}
           {% else %}
             <p class="text-sm text-dark-gray">No software usage data is currently reported for {{ node.label }} in <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
           {% endif %}
@@ -518,32 +718,7 @@
             <h3 class="text-teal font-bold mt-6">Available via ACCESS OnDemand</h3>
             {# Link to the resource's OnDemand instance (the existing field_rp_ondemand_url, already set up as ondemand_url). #}
             <p class="text-sm text-dark-gray mb-3">Software available through {% if ondemand_url %}<a href="{{ ondemand_url }}" class="text-md-teal no-underline hover--underline">ACCESS OnDemand on {{ node.label }}</a>{% else %}ACCESS OnDemand on {{ node.label }}{% endif %}.</p>
-            <div class="overflow-x-auto">
-              <table class="w-full border-collapse">
-                <thead>
-                  <tr>
-                    <th class="text-left py-2 pr-4 font-semibold">Application</th>
-                    <th class="text-left py-2 pr-4 font-semibold">Description</th>
-                    <th class="text-left py-2 font-semibold">Research Discipline</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for sw in ood_software %}
-                    <tr>
-                      <td class="py-2 pr-4 font-semibold whitespace-nowrap">
-                        {%- if sw.web_page -%}
-                          <a href="{{ sw.web_page }}" class="text-md-teal no-underline hover--underline">{{ sw.name }}</a>
-                        {%- else -%}
-                          {{ sw.name }}
-                        {%- endif -%}
-                      </td>
-                      <td class="py-2 pr-4 text-sm">{{ sw.description|default('') }}</td>
-                      <td class="py-2 text-sm">{{ sw.research_field|default('') }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
+            {{ fmt.software_table(ood_software, 'web_page') }}
             </div>{# /.rp-ood-software #}
           {% endif %}
         </div>
@@ -552,14 +727,16 @@
         <div class="rp-software-sidebar">
           {# Software CTA: RP's official software page #}
           {% set software_list_url = node.field_rp_software_list_url.0 %}
-          {% if software_list_url or sds_has_software and sds_resource_name %}
+          {# sds_slug is set near has_software above. The link text names the
+             group rather than implying SDS is filtered to this resource. #}
+          {% if software_list_url or sds_has_software and sds_slug %}
             <div class="bg-dark-teal text-white p-4 mb-4">
               <h3 class="mt-0 text-lg font-bold text-white">SEE ALL SOFTWARE AVAILABLE ON {{ node.label|upper }}</h3>
               <ul class="list-none p-0 m-0 font-normal">
-                {% if sds_has_software and sds_resource_name %}
+                {% if sds_has_software and sds_slug %}
                   <li class="mb-2 pl-0 leading-tight">
-                    <a href="https://sds.access-ci.org/?installed_on={{ sds_resource_name }}" class="text-white text-sm no-underline hover--underline hover--text-white leading-tight">
-                      Explore in Access Software Documentation Service <i class="bi bi-arrow-right"></i>
+                    <a href="https://sds.access-ci.org/?installed_on={{ sds_slug|url_encode }}" class="text-white text-sm no-underline hover--underline hover--text-white leading-tight">
+                      Explore all {{ sds_resource_label|default('ACCESS') }} software in the Software Documentation Service <i class="bi bi-arrow-right"></i>
                     </a>
                   </li>
                 {% else %}
@@ -585,61 +762,25 @@
     </div>
   {% endif %}
 
-  {# ========== Datasets (full width) ========== #}
-  {% if field_rp_datasets_items|length > 0 %}
-    <div id="rp-datasets" class="rp-datasets mb-8">
-      <hr class="rp-section-rule">
-      <h2 class="flex items-center gap-2"><i class="bi bi-table"></i> Datasets</h2>
-      {% set datasets_text = node.field_rp_datasets_text.value %}
-      {% if datasets_text %}
-        <div class="prose max-w-none mb-4">
-          {{ expandable_text(node.field_rp_datasets_text.processed, 6) }}
-        </div>
-      {% endif %}
-      {# Only render the table if at least one row has a name, otherwise the
-         headers show above an empty body. #}
-      {% set has_dataset_rows = false %}
-      {% for paragraph in field_rp_datasets_items %}
-        {% if paragraph.field_rp_dataset_name.value|default('') %}
-          {% set has_dataset_rows = true %}
-        {% endif %}
-      {% endfor %}
-      {% if has_dataset_rows %}
-      <div class="overflow-x-auto">
-        <table class="w-full border-collapse">
-          <thead>
-            <tr>
-              <th class="text-left py-2 pr-4 font-semibold">Name</th>
-              <th class="text-left py-2 font-semibold">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for paragraph in field_rp_datasets_items %}
-              {% if paragraph.field_rp_dataset_name.value|default('') %}
-              <tr>
-                <td class="py-2 pr-4 font-semibold">{{ paragraph.field_rp_dataset_name.value }}</td>
-                <td class="py-2 text-sm">{{ paragraph.field_rp_dataset_description.value|default('') ? paragraph.field_rp_dataset_description.processed : '' }}</td>
-              </tr>
-              {% endif %}
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% endif %}
-    </div>
-  {% endif %}
-
   {# ========== Storage (full width, near bottom) ========== #}
   {# --- Storage Section --- #}
   {% if field_rp_storage_items|length > 0 or external_storage %}
     <div id="rp-storage" class="rp-storage mb-8">
       <hr class="rp-section-rule">
-      <h2 class="flex items-center gap-2"><i class="bi bi-database"></i> Storage</h2>
+      {# Optional link to the RP's own storage documentation. #}
+      {% set storage_link = node.field_rp_storage_link.0 %}
+      <h2 class="flex items-center gap-2"><i class="bi bi-database"></i> Storage
+        {% if storage_link.uri|default('') %}
+          <a href="{{ storage_link.uri }}" class="no-underline">
+            <i class="bi bi-book text-md-teal"></i>
+          </a>
+        {% endif %}
+      </h2>
 
       {% set storage_text = node.field_rp_storage_text.value %}
       {% if storage_text %}
         <div class="prose max-w-none mb-4">
-          {{ expandable_text(node.field_rp_storage_text.processed, 6) }}
+          {{ expandable_text(node.field_rp_storage_text.processed, 3) }}
         </div>
       {% endif %}
 
@@ -652,8 +793,16 @@
         {% endif %}
       {% endfor %}
       {% if has_storage_rows %}
-        <h3 class="text-teal font-bold">File System</h3>
-        <div class="overflow-x-auto">
+        {# Optional link to the RP's own file system documentation. #}
+        {% set file_system_link = node.field_rp_file_system_link.0 %}
+        <h3 class="flex items-center gap-2 text-teal font-bold">File System
+          {% if file_system_link.uri|default('') %}
+            <a href="{{ file_system_link.uri }}" class="no-underline">
+              <i class="bi bi-book text-md-teal"></i>
+            </a>
+          {% endif %}
+        </h3>
+        <div>
           <table class="w-full border-collapse">
             <thead>
               <tr>
@@ -673,7 +822,12 @@
                   <td class="py-2 pr-4">{{ paragraph.field_rp_fs_path.value|default('') }}</td>
                   <td class="py-2 pr-4">
                     {% set quota_inode = paragraph.field_rp_quota_inode_amount.value %}
-                    {{ fmt.gb_size(paragraph.field_rp_quota_size.value) }}{% if quota_inode %}, {{ quota_inode|number_format }} files{% endif %}
+                    {% set quota_size = fmt.gb_size(paragraph.field_rp_quota_size.value)|trim %}
+                    {%- if quota_size or quota_inode -%}
+                      {{ quota_size }}{% if quota_inode %}{% if quota_size %}, {% endif %}{{ quota_inode|number_format }} files{% endif %}
+                    {%- else -%}
+                      See notes
+                    {%- endif -%}
                   </td>
                   <td class="py-2 pr-4">{{ paragraph.field_rp_purge.value|default('') }}</td>
                   <td class="py-2 pr-4">{{ paragraph.field_rp_backup.value|default('') }}</td>
@@ -688,9 +842,17 @@
 
       {# External Storage #}
       {% if external_storage %}
-        <h3 class="text-teal font-bold mt-6">External Storage</h3>
+        {# Optional link to the RP's own external storage documentation. #}
+        {% set external_storage_link = node.field_rp_external_storage_link.0 %}
+        <h3 class="flex items-center gap-2 text-teal font-bold mt-6">External Storage
+          {% if external_storage_link.uri|default('') %}
+            <a href="{{ external_storage_link.uri }}" class="no-underline">
+              <i class="bi bi-book text-md-teal"></i>
+            </a>
+          {% endif %}
+        </h3>
         <div class="prose max-w-none mb-8">
-          {{ expandable_text(node.field_rp_external_storage.processed, 6) }}
+          {{ expandable_text(node.field_rp_external_storage.processed, 3) }}
         </div>
       {% endif %}
     </div>
@@ -701,11 +863,19 @@
   {% if field_rp_file_transfer_items|length > 0 %}
     <div id="rp-file-transfer" class="rp-file-transfer mb-8">
       <hr class="rp-section-rule">
-      <h2 class="flex items-center gap-2"><i class="bi bi-arrow-left-right"></i> File Transfer</h2>
+      {# Optional link to the RP's own file transfer documentation. #}
+      {% set file_transfer_link = node.field_rp_file_transfer_link.0 %}
+      <h2 class="flex items-center gap-2"><i class="bi bi-arrow-left-right"></i> File Transfer
+        {% if file_transfer_link.uri|default('') %}
+          <a href="{{ file_transfer_link.uri }}" class="no-underline">
+            <i class="bi bi-book text-md-teal"></i>
+          </a>
+        {% endif %}
+      </h2>
       {% set file_transfer_text = node.field_rp_file_transfer_text.value %}
       {% if file_transfer_text %}
         <div class="prose max-w-none mb-4">
-          {{ expandable_text(node.field_rp_file_transfer_text.processed, 6) }}
+          {{ expandable_text(node.field_rp_file_transfer_text.processed, 3) }}
         </div>
       {% endif %}
       {# Only render the table if at least one row has a transfer method,
@@ -717,13 +887,21 @@
         {% endif %}
       {% endfor %}
       {% if has_transfer_rows %}
-      <div class="overflow-x-auto">
+      {# Clamp to N rows with a More/Less toggle, same as the top-software and
+         datasets tables: written out here rather than via the expandable_text()
+         Twig function, which funnels a captured string through #markup where
+         Xss::filterAdmin() would strip the cell markup. data-rows makes the JS
+         clamp on a row boundary. #}
+      {{ attach_library('expandable_text/expandable_text') }}
+      <div class="expandable-text" data-rows="3">
+      <div class="expandable-text__content" id="rp-file-transfer-content">
+      <div>
         <table class="w-full border-collapse">
           <thead>
             <tr>
               <th class="text-left py-2 pr-4 font-semibold">Supported Methods</th>
               <th class="text-left py-2 pr-4 font-semibold">Data Transfer Node</th>
-              <th class="text-left py-2 font-semibold">URL</th>
+              <th class="text-left py-2 font-semibold">Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -750,6 +928,8 @@
           </tbody>
         </table>
       </div>
+      </div>{# /.expandable-text__content #}
+      </div>{# /.expandable-text #}
       {% endif %}
     </div>
   {% endif %}
@@ -762,7 +942,15 @@
   {% if ssh_logins|length > 0 or ondemand_url or login_text or login_help|length > 0 or account_setup|length > 0 or mfa_required %}
     <div id="rp-login" class="rp-login mb-8">
       <hr class="rp-section-rule">
-      <h2 class="flex items-center gap-2"><i class="bi bi-box-arrow-in-right"></i> Login to {{ node.label }}</h2>
+      {# Optional link to the RP's own login documentation. #}
+      {% set login_doc_link = node.field_rp_login_to_anvil_gpu_link.0 %}
+      <h2 class="flex items-center gap-2"><i class="bi bi-box-arrow-in-right"></i> Login to {{ node.label }}
+        {% if login_doc_link.uri|default('') %}
+          <a href="{{ login_doc_link.uri }}" class="no-underline">
+            <i class="bi bi-book text-md-teal"></i>
+          </a>
+        {% endif %}
+      </h2>
 
       {% if mfa_required %}
         <p class="flex items-center gap-1 text-sm mb-4">
@@ -773,7 +961,7 @@
       {# Login text — rich text above login boxes #}
       {% if login_text %}
         <div class="prose max-w-none mb-4">
-          {{ expandable_text(node.field_rp_login_text.processed, 6) }}
+          {{ expandable_text(node.field_rp_login_text.processed, 3) }}
         </div>
       {% endif %}
 
@@ -808,7 +996,15 @@
           {% endfor %}
 
           <div class="border-2 border-dark-teal p-4">
-            <h3 class="text-lg font-bold mt-0 mb-3">SSH Login</h3>
+            {# Optional link to the RP's own SSH login documentation. #}
+            {% set ssh_login_link = node.field_rp_ssh_login_link.0 %}
+            <h3 class="flex items-center gap-2 text-lg font-bold mt-0 mb-3">SSH Login
+              {% if ssh_login_link.uri|default('') %}
+                <a href="{{ ssh_login_link.uri }}" class="no-underline">
+                  <i class="bi bi-book text-md-teal"></i>
+                </a>
+              {% endif %}
+            </h3>
             {# Only surface the user's real RP username in the ssh command once
                the account is provisioned. While sp_state is pending-active the
                account panel above says "being set up", so don't imply a usable
@@ -835,7 +1031,15 @@
         {# OnDemand Login #}
         {% if ondemand_url %}
           <div class="border-2 border-dark-teal p-4">
-            <h3 class="text-lg font-bold mt-0 mb-3">ACCESS OnDemand Login</h3>
+            {# Optional link to the RP's own OnDemand login documentation. #}
+            {% set ood_login_link = node.field_rp_access_ood_login_link.0 %}
+            <h3 class="flex items-center gap-2 text-lg font-bold mt-0 mb-3">ACCESS OnDemand Login
+              {% if ood_login_link.uri|default('') %}
+                <a href="{{ ood_login_link.uri }}" class="no-underline">
+                  <i class="bi bi-book text-md-teal"></i>
+                </a>
+              {% endif %}
+            </h3>
             <a href="{{ ondemand_url }}" class="btn btn-primary">
               {{ ondemand.title|default('LOGIN')|upper }}
             </a>
@@ -861,6 +1065,68 @@
       {% endif %}
     </div>
   {% endif %}
+  {# ========== Datasets (full width, at bottom) ========== #}
+  {% if field_rp_datasets_items|length > 0 %}
+    <div id="rp-datasets" class="rp-datasets mb-8">
+      <hr class="rp-section-rule">
+      {# Optional link to the RP's own datasets documentation. #}
+      {% set datasets_link = node.field_rp_datasets_link.0 %}
+      <h2 class="flex items-center gap-2"><i class="bi bi-table"></i> Datasets
+        {% if datasets_link.uri|default('') %}
+          <a href="{{ datasets_link.uri }}" class="no-underline">
+            <i class="bi bi-book text-md-teal"></i>
+          </a>
+        {% endif %}
+      </h2>
+      {% set datasets_text = node.field_rp_datasets_text.value %}
+      {% if datasets_text %}
+        <div class="prose max-w-none mb-4">
+          {{ expandable_text(node.field_rp_datasets_text.processed, 3) }}
+        </div>
+      {% endif %}
+      {# Only render the table if at least one row has a name, otherwise the
+         headers show above an empty body. #}
+      {% set has_dataset_rows = false %}
+      {% for paragraph in field_rp_datasets_items %}
+        {% if paragraph.field_rp_dataset_name.value|default('') %}
+          {% set has_dataset_rows = true %}
+        {% endif %}
+      {% endfor %}
+      {% if has_dataset_rows %}
+      {# Clamp to N rows with a More/Less toggle, same as the top-software
+         table: written out here rather than via the expandable_text() Twig
+         function, which funnels a captured string through #markup where
+         Xss::filterAdmin() would strip the cell markup. data-rows makes the JS
+         clamp on a row boundary. #}
+      {{ attach_library('expandable_text/expandable_text') }}
+      <div class="expandable-text" data-rows="2">
+      <div class="expandable-text__content" id="rp-datasets-content">
+      <div>
+        <table class="w-full border-collapse">
+          <thead>
+            <tr>
+              <th class="text-left py-2 pr-4 font-semibold">Name</th>
+              <th class="text-left py-2 font-semibold">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for paragraph in field_rp_datasets_items %}
+              {% if paragraph.field_rp_dataset_name.value|default('') %}
+              <tr>
+                <td class="py-2 pr-4 font-semibold">{{ paragraph.field_rp_dataset_name.value }}</td>
+                <td class="py-2 text-sm">{{ paragraph.field_rp_dataset_description.value|default('') ? paragraph.field_rp_dataset_description.processed : '' }}</td>
+              </tr>
+              {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      </div>{# /.expandable-text__content #}
+      </div>{# /.expandable-text #}
+      {% endif %}
+    </div>
+  {% endif %}
+
 
 </article>
 
