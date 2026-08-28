@@ -566,8 +566,7 @@ html:has(body.page-node-type-access-active-resources-from-cid) {
     }
     a {
       text-transform: capitalize;
-      font-stretch: 75%;
-      font-weight: 700;
+      font-weight: 600;
       font-size: 0.875rem;
     }
 

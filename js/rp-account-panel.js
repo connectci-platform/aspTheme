@@ -142,13 +142,13 @@
         var setupTitle = setup.title || 'RP Account Setup';
         panel.innerHTML = heading +
           '<a href="' + escapeHtml(setup.uri) +
-          '" class="text-white text-sm no-underline hover--underline hover--text-white leading-tight">' +
-          escapeHtml(setupTitle) + ' <i class="bi bi-arrow-right"></i></a>';
+          '" class="text-white text-sm hover--underline hover--text-white leading-tight">' +
+          escapeHtml(setupTitle) + ' </a>';
       } else {
         var manageUrl = data.manage_url || 'https://allocations.access-ci.org/';
         panel.innerHTML = heading +
           '<a href="' + escapeHtml(manageUrl) +
-          '" class="text-white text-sm no-underline hover--underline hover--text-white leading-tight">' +
+          '" class="text-white text-sm hover--underline hover--text-white leading-tight">' +
           'Request an account <i class="bi bi-arrow-right"></i></a>';
       }
     }
