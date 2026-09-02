@@ -993,16 +993,22 @@ article.node--type-tools-case-study {
    of the form's hierarchy, so it reads heaviest — above the bold field labels
    inside it — with a tinted bar and pointer for the collapse affordance. */
 #node-access-active-resources-from-cid-form details[id^="edit-group-"] > summary,
-#node-access-active-resources-from-cid-edit-form details[id^="edit-group-"] > summary {
+#node-access-active-resources-from-cid-edit-form details[id^="edit-group-"] > summary,
+#node-resource-group-form details[id^="edit-group-"] > summary,
+#node-resource-group-edit-form details[id^="edit-group-"] > summary {
   @apply text-lg font-bold py-2 px-3 bg-light-gray cursor-pointer;
 }
 #node-access-active-resources-from-cid-form details[id^="edit-group-"][open] > summary,
-#node-access-active-resources-from-cid-edit-form details[id^="edit-group-"][open] > summary {
+#node-access-active-resources-from-cid-edit-form details[id^="edit-group-"][open] > summary,
+#node-resource-group-form details[id^="edit-group-"][open] > summary,
+#node-resource-group-edit-form details[id^="edit-group-"][open] > summary {
   @apply mb-4;
 }
 
 #node-access-active-resources-from-cid-form .fieldset-legend,
-#node-access-active-resources-from-cid-edit-form .fieldset-legend {
+#node-access-active-resources-from-cid-edit-form .fieldset-legend,
+#node-resource-group-form .fieldset-legend,
+#node-resource-group-edit-form .fieldset-legend {
   /* Same weight as sibling field labels — the legend IS a field label; the
      hierarchy against its own sub-parts comes from de-emphasising those and
      indenting the fieldset body below. */
@@ -1014,11 +1020,15 @@ article.node--type-tools-case-study {
    to group them visually. Scoped to link fields: paragraph subforms hold full
    fields of their own and keep normal label weight. */
 #node-access-active-resources-from-cid-form .field--type-link .fieldset-wrapper label,
-#node-access-active-resources-from-cid-edit-form .field--type-link .fieldset-wrapper label {
+#node-access-active-resources-from-cid-edit-form .field--type-link .fieldset-wrapper label,
+#node-resource-group-form .field--type-link .fieldset-wrapper label,
+#node-resource-group-edit-form .field--type-link .fieldset-wrapper label {
   @apply font-medium text-sm;
 }
 #node-access-active-resources-from-cid-form .field--type-link .fieldset-wrapper,
-#node-access-active-resources-from-cid-edit-form .field--type-link .fieldset-wrapper {
+#node-access-active-resources-from-cid-edit-form .field--type-link .fieldset-wrapper,
+#node-resource-group-form .field--type-link .fieldset-wrapper,
+#node-resource-group-edit-form .field--type-link .fieldset-wrapper {
   @apply pl-4 border-0 border-l-2 border-solid border-gray;
 }
 
