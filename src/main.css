@@ -985,8 +985,60 @@ article.node--type-tools-case-study {
   @apply text-lg font-bold;
 }
 
+/* Composite widgets (link fields, paragraphs) title themselves with a
+   p.fieldset-legend, which rendered lighter than their own URL/Link text
+   sub-labels — an inverted hierarchy. Give legends on the RP forms the same
+   weight as plain field labels. */
+/* Field-group accordion headers on the RP forms. The section title is the top
+   of the form's hierarchy, so it reads heaviest — above the bold field labels
+   inside it — with a tinted bar and pointer for the collapse affordance. */
+#node-access-active-resources-from-cid-form details[id^="edit-group-"] > summary,
+#node-access-active-resources-from-cid-edit-form details[id^="edit-group-"] > summary,
+#node-resource-group-form details[id^="edit-group-"] > summary,
+#node-resource-group-edit-form details[id^="edit-group-"] > summary {
+  @apply text-lg font-bold py-2 px-3 bg-light-gray cursor-pointer;
+}
+#node-access-active-resources-from-cid-form details[id^="edit-group-"][open] > summary,
+#node-access-active-resources-from-cid-edit-form details[id^="edit-group-"][open] > summary,
+#node-resource-group-form details[id^="edit-group-"][open] > summary,
+#node-resource-group-edit-form details[id^="edit-group-"][open] > summary {
+  @apply mb-4;
+}
+
+#node-access-active-resources-from-cid-form .fieldset-legend,
+#node-access-active-resources-from-cid-edit-form .fieldset-legend,
+#node-resource-group-form .fieldset-legend,
+#node-resource-group-edit-form .fieldset-legend {
+  /* Same weight as sibling field labels — the legend IS a field label; the
+     hierarchy against its own sub-parts comes from de-emphasising those and
+     indenting the fieldset body below. */
+  @apply font-bold;
+}
+
+/* Inside a link field, URL / Link text are sub-parts of one logical field, so
+   they read a step below the legend, and the body is indented under a hairline
+   to group them visually. Scoped to link fields: paragraph subforms hold full
+   fields of their own and keep normal label weight. */
+#node-access-active-resources-from-cid-form .field--type-link .fieldset-wrapper label,
+#node-access-active-resources-from-cid-edit-form .field--type-link .fieldset-wrapper label,
+#node-resource-group-form .field--type-link .fieldset-wrapper label,
+#node-resource-group-edit-form .field--type-link .fieldset-wrapper label {
+  @apply font-medium text-sm;
+}
+#node-access-active-resources-from-cid-form .field--type-link .fieldset-wrapper,
+#node-access-active-resources-from-cid-edit-form .field--type-link .fieldset-wrapper,
+#node-resource-group-form .field--type-link .fieldset-wrapper,
+#node-resource-group-edit-form .field--type-link .fieldset-wrapper {
+  @apply pl-4 border-0 border-l-2 border-solid border-gray;
+}
+
+/* Required dot on the account-setup URL while "RP Account Required" is on.
+   The ADD form still uses the stock checkbox; the EDIT form's checkbox is
+   replaced by operations_cider's inherit/Yes/No select, so it keys on the
+   explicit Yes option instead. (An inherited Yes can't show the dot — CSS
+   cannot see the group's value — the validate handler still enforces it.) */
 #node-access-active-resources-from-cid-form:has([data-drupal-selector="edit-field-rp-account-required-value"]:checked) [for="edit-field-rp-account-setup-url-0-uri"]:after,
-#node-access-active-resources-from-cid-edit-form:has([data-drupal-selector="edit-field-rp-account-required-value"]:checked) [for="edit-field-rp-account-setup-url-0-uri"]:after {
+#node-access-active-resources-from-cid-edit-form:has(select[name="operations_cider_bool[field_rp_account_required]"] option[value="1"]:checked) [for="edit-field-rp-account-setup-url-0-uri"]:after {
   display: inline-block;
   width: 6px;
   height: 6px;

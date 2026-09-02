@@ -107,59 +107,68 @@
     <button id="ara-dismiss" class="text-sm underline text-primary-blue mt-2 cursor-pointer bg-transparent border-0 p-0">Dismiss</button>
   </div>
 
+  {# Section-presence gates. Declared at the article level (not inside
+     .rp-main-content) because the sticky jump-to nav below sits here too, and
+     the full-width Software/Storage/etc. sections further down reuse the same
+     flags. #}
+  {% set has_login = field_rp_ssh_login_nodes_items|length > 0 or ondemand_url %}
+  {% set has_file_transfer = field_rp_file_transfer_items|length > 0 %}
+  {% set has_storage = field_rp_storage_items|length > 0 or external_storage %}
+  {% set has_jobs = field_rp_queue_specs_items|length > 0 or node.field_rp_jobs_info.value %}
+  {# One definition for both the jump-to nav link and the Software section
+     itself. They used to be hand-maintained copies of the same condition
+     and had drifted: nodes with only an SDS list, only an OnDemand list,
+     only a software_list_url or only the sidebar card rendered the
+     section with no nav link pointing at it. #}
+  {# Slug for the SDS website's ?installed_on= parameter. SDS can only
+     filter by group, so prefer the group name SDS itself reports
+     (sds_rp_name) and fall back to the one derived from the group title.
+     Set once here so the section gate and the sidebar CTA below cannot
+     drift apart. #}
+  {% set sds_slug = sds_rp_name|default(sds_resource_name) %}
+  {% set has_software = top_software|length > 0
+    or sds_software|length > 0
+    or ood_software|length > 0
+    or node.field_rp_software_list_url.0 is not null
+    or (sds_has_software and sds_slug) %}
+  {% set has_datasets = field_rp_datasets_items|length > 0 %}
+
+  {# account_setup is used by the sidebar CTA; declared here, rendered in Login block at bottom of page #}
+  {% set account_setup = node.field_rp_account_setup_url %}
+
+  {# --- Jump-to anchor nav (full-width, sticky) ---
+     Lives at the article level, outside .rp-main-content. position:sticky only
+     holds within its containing block, and .rp-main-content ends where the top
+     grid does — so nesting the nav there let it unstick as soon as the reader
+     scrolled into the full-width sections below. At the article level its
+     containing block is the whole page, so it stays pinned throughout. #}
+  {% if has_login or has_file_transfer or has_storage or has_jobs or has_software or has_datasets %}
+    <nav class="rp-jump-to mb-6 py-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" aria-label="Jump to section">
+      {% if has_jobs %}
+        <a href="#rp-jobs" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-card-checklist"></i> Submitting Jobs</a>
+      {% endif %}
+      {% if has_software %}
+        <a href="#rp-software" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-terminal"></i> Software</a>
+      {% endif %}
+      {% if has_storage %}
+        <a href="#rp-storage" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-database"></i> Storage</a>
+      {% endif %}
+      {% if has_file_transfer %}
+        <a href="#rp-file-transfer" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-arrow-left-right"></i> File Transfer</a>
+      {% endif %}
+      {% if has_login %}
+        <a href="#rp-login" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-box-arrow-in-right"></i> Login</a>
+      {% endif %}
+      {% if has_datasets %}
+        <a href="#rp-datasets" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-table"></i> Datasets</a>
+      {% endif %}
+    </nav>
+  {% endif %}
+
   <div class="grid grid-cols-1 gap-8 md--grid-cols-[1fr_25%]">
 
     {# ========== Main Content Column ========== #}
     <div class="rp-main-content">
-
-      {% set has_login = field_rp_ssh_login_nodes_items|length > 0 or ondemand_url %}
-      {% set has_file_transfer = field_rp_file_transfer_items|length > 0 %}
-      {% set has_storage = field_rp_storage_items|length > 0 or external_storage %}
-      {% set has_jobs = field_rp_queue_specs_items|length > 0 or node.field_rp_jobs_info.value %}
-      {# One definition for both the jump-to nav link and the Software section
-         itself. They used to be hand-maintained copies of the same condition
-         and had drifted: nodes with only an SDS list, only an OnDemand list,
-         only a software_list_url or only the sidebar card rendered the
-         section with no nav link pointing at it. #}
-      {# Slug for the SDS website's ?installed_on= parameter. SDS can only
-         filter by group, so prefer the group name SDS itself reports
-         (sds_rp_name) and fall back to the one derived from the group title.
-         Set once here so the section gate and the sidebar CTA below cannot
-         drift apart. #}
-      {% set sds_slug = sds_rp_name|default(sds_resource_name) %}
-      {% set has_software = top_software|length > 0
-        or sds_software|length > 0
-        or ood_software|length > 0
-        or node.field_rp_software_list_url.0 is not null
-        or (sds_has_software and sds_slug) %}
-      {% set has_datasets = field_rp_datasets_items|length > 0 %}
-
-      {# account_setup is used by the sidebar CTA; declared here, rendered in Login block at bottom of page #}
-      {% set account_setup = node.field_rp_account_setup_url %}
-
-      {# --- Jump-to anchor nav (full-width, sticky) --- #}
-      {% if has_login or has_file_transfer or has_storage or has_jobs or has_software or has_datasets %}
-        <nav class="rp-jump-to mb-6 py-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" aria-label="Jump to section">
-          {% if has_jobs %}
-            <a href="#rp-jobs" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-card-checklist"></i> Submitting Jobs</a>
-          {% endif %}
-          {% if has_software %}
-            <a href="#rp-software" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-terminal"></i> Software</a>
-          {% endif %}
-          {% if has_storage %}
-            <a href="#rp-storage" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-database"></i> Storage</a>
-          {% endif %}
-          {% if has_file_transfer %}
-            <a href="#rp-file-transfer" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-arrow-left-right"></i> File Transfer</a>
-          {% endif %}
-          {% if has_login %}
-            <a href="#rp-login" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-box-arrow-in-right"></i> Login</a>
-          {% endif %}
-          {% if has_datasets %}
-            <a href="#rp-datasets" class="flex items-center gap-1 text-dark-gray no-underline hover--underline font-bold"><i class="bi bi-table"></i> Datasets</a>
-          {% endif %}
-        </nav>
-      {% endif %}
 
       {{ title_prefix }}
       {% if account_required %}
