@@ -149,7 +149,7 @@
         panel.innerHTML = heading +
           '<a href="' + escapeHtml(manageUrl) +
           '" class="text-white text-sm hover--underline hover--text-white leading-tight">' +
-          'Request an account <i class="bi bi-arrow-right"></i></a>';
+          'Request an account</a>';
       }
     }
     // has_account === null is handled by the retry loop in init(), not here.

@@ -211,7 +211,7 @@
             <ul class="list-none p-0 m-0 font-normal">
               {% for link in support_links %}
                 <li class="mb-2 pl-0 leading-tight">
-                  <a href="{{ link.uri|replace({'internal:': ''}) }}" class="text-white hover--underline hover--text-white font-normal leading-tight">
+                  <a href="{{ link.uri|replace({'internal:': ''}) }}" class="text-white hover--no-underline hover--text-light-teal font-normal leading-tight">
                     {{ link.title ?: link.uri|replace({'internal:': '', 'https://': '', 'http://': ''}) }}
                   </a>
                 </li>
@@ -221,7 +221,7 @@
           {% if office_hours %}
             <div class="border-t border-md-teal pt-3">
               <p class="font-bold mb-1 text-sm">OFFICE HOURS</p>
-              <a href="{{ office_hours.uri|replace({'internal:': ''}) }}" class="text-white hover--underline hover--text-white font-normal text-sm">
+              <a href="{{ office_hours.uri|replace({'internal:': ''}) }}" class="text-white hover--underline hover--no-underline hover--text-light-teal font-normal text-sm">
                 {{ office_hours.title ?: 'View Office Hours' }}
               </a>
             </div>
@@ -279,7 +279,7 @@
               {% endfor %}
             </div>
 
-            <a href="https://allocations.access-ci.org/" class="text-white text-sm hover--underline hover--text-white">
+            <a href="https://allocations.access-ci.org/" class="text-white text-sm hover--no-underline hover--text-light-teal">
               Manage allocations →
             </a>
           {% endif %}
@@ -304,11 +304,11 @@
           <div class="mb-3">
             <h3 class="mt-0 text-lg font-bold text-white">GET AN ACCOUNT ON {{ node.label|upper }}</h3>
             {% if account_setup|length > 0 %}
-              <a href="{{ account_setup.0.uri|replace({'internal:': ''}) }}" class="text-white text-sm no-underline hover--underline hover--text-white leading-tight">
+              <a href="{{ account_setup.0.uri|replace({'internal:': ''}) }}" class="text-white text-sm no-underline hover--no-underline hover--text-light-teal leading-tight">
                 {{ account_setup.0.title ?: 'RP Account Setup' }}
               </a>
             {% else %}
-              <a href="https://allocations.access-ci.org/" class="text-white text-sm hover--underline hover--text-white leading-tight">
+              <a href="https://allocations.access-ci.org/" class="text-white text-sm hover--no-underline hover--text-light-teal leading-tight">
                 Request an account
               </a>
             {% endif %}
@@ -747,19 +747,19 @@
               <ul class="list-none p-0 m-0 font-normal">
                 {% if sds_has_software and sds_slug %}
                   <li class="mb-2 pl-0 leading-tight">
-                    <a href="https://sds.access-ci.org/?installed_on={{ sds_slug|url_encode }}" class="text-white text-sm hover--underline hover--text-white leading-tight">
+                    <a href="https://sds.access-ci.org/?installed_on={{ sds_slug|url_encode }}" class="text-white text-sm hover--no-underline hover--text-light-teal leading-tight">
                       Explore all {{ sds_resource_label|default('ACCESS') }} software in the Software Documentation Service
                     </a>
                   </li>
                 {% else %}
                   <li class="mb-2 pl-0">
-                    <p class="text-sm text-white m-0">{{ node.label }} is not currently reporting available software to the <a href="https://sds.access-ci.org" class="text-white underline hover--underline hover--text-white">Software Documentation Service</a>.</p>
+                    <p class="text-sm text-white m-0">{{ node.label }} is not currently reporting available software to the <a href="https://sds.access-ci.org" class="text-white underline hover--no-underline hover--text-light-teal">Software Documentation Service</a>.</p>
                   </li>
                 {% endif %}
 
                 {% if software_list_url %}
                   <li class="mb-2 pl-0 leading-tight">
-                    <a href="{{ software_list_url.uri|replace({'internal:': ''}) }}" class="text-white text-sm hover--underline hover--text-white leading-tight">
+                    <a href="{{ software_list_url.uri|replace({'internal:': ''}) }}" class="text-white text-sm hover--no-underline hover--text-light-teal leading-tight">
                       See Provider Software Documentation
                     </a>
                   </li>
