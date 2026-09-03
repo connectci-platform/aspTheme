@@ -243,6 +243,7 @@ module.exports = {
     'hover--text-light-teal',
     'hover--text-dark-teal',
     'hover--text-md-teal',
+    'hover--text-light-teal',
     'hover--text-white',
     'hover--underline',
     'hover--[&>*]--border-dark-teal',
