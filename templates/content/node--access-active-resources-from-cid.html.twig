@@ -655,7 +655,7 @@
             <p class="text-sm text-dark-gray mb-3">The following software packages are among the most frequently used on {{ node.label }}, based on job data from <a href="https://xdmod.access-ci.org" class="text-md-teal no-underline hover--underline">XDMoD</a>.</p>
             {# Optional link to the RP's own most-used software documentation. #}
             {% set freq_used_software_link = node.field_rp_freq_used_software_link.0 %}
-            <h3 class="flex items-center gap-2 text-teal font-bold">Most Frequently Used
+            <h3 class="flex items-center gap-2 font-bold">Most Frequently Used
               {% if freq_used_software_link.uri|default('') %}
                 <a href="{{ freq_used_software_link.uri }}" class="no-underline">
                   <i class="bi bi-book text-md-teal"></i>
@@ -707,7 +707,7 @@
             {{ attach_library('aspTheme/software-table') }}
             <div class="rp-sds-software-table">
             <p class="text-sm text-dark-gray mb-3">The following software is reported as available on {{ node.label }} by the <a href="https://sds.access-ci.org" class="text-md-teal no-underline hover--underline">Software Documentation Service</a>.</p>
-            <h3 class="text-teal font-bold">Available Software</h3>
+            <h3 class="font-bold">Available Software</h3>
             <div class="rp-sds-software" data-total="{{ sds_software|length }}">
               {# Rendered hidden and un-hidden by rp-software-filter.js, so no-JS
                  visitors never see a dead input. #}
@@ -727,7 +727,7 @@
           {% endif %}
           {% if ood_software|length > 0 %}
             <div class="rp-ood-software">
-            <h3 class="text-teal font-bold mt-6">Available via ACCESS OnDemand</h3>
+            <h3 class="font-bold mt-6">Available via ACCESS OnDemand</h3>
             {# Link to the resource's OnDemand instance (the existing field_rp_ondemand_url, already set up as ondemand_url). #}
             <p class="text-sm text-dark-gray mb-3">Software available through {% if ondemand_url %}<a href="{{ ondemand_url }}" class="text-md-teal no-underline hover--underline">ACCESS OnDemand on {{ node.label }}</a>{% else %}ACCESS OnDemand on {{ node.label }}{% endif %}.</p>
             {{ fmt.software_table(ood_software, 'web_page') }}
@@ -807,7 +807,7 @@
       {% if has_storage_rows %}
         {# Optional link to the RP's own file system documentation. #}
         {% set file_system_link = node.field_rp_file_system_link.0 %}
-        <h3 class="flex items-center gap-2 text-teal font-bold">File System
+        <h3 class="flex items-center gap-2 font-bold">File System
           {% if file_system_link.uri|default('') %}
             <a href="{{ file_system_link.uri }}" class="no-underline">
               <i class="bi bi-book text-md-teal"></i>
@@ -856,7 +856,7 @@
       {% if external_storage %}
         {# Optional link to the RP's own external storage documentation. #}
         {% set external_storage_link = node.field_rp_external_storage_link.0 %}
-        <h3 class="flex items-center gap-2 text-teal font-bold mt-6">External Storage
+        <h3 class="flex items-center gap-2 font-bold mt-6">External Storage
           {% if external_storage_link.uri|default('') %}
             <a href="{{ external_storage_link.uri }}" class="no-underline">
               <i class="bi bi-book text-md-teal"></i>
@@ -1022,6 +1022,7 @@
                account panel above says "being set up", so don't imply a usable
                login name here — fall back to the generic placeholder. #}
             {% set ssh_username = user_rp_sp_state == 'pending-active' ? '' : user_rp_username|default('') %}
+            <label for="rp-ssh-login-select" class="sr-only">SSH login host</label>
             <select id="rp-ssh-login-select" class="w-full border border-gray rounded-md p-2 mb-2" data-placeholder-fallback="&lt;your_username&gt;" data-user-username="{{ ssh_username }}">
               {% for entry in ssh_entries %}
                 <option value="{{ entry.hostname }}" data-placeholder="{{ entry.placeholder }}" data-docs-uri="{{ entry.docs_uri }}" data-docs-title="{{ entry.docs_title }}" {{ entry.recommended ? 'selected' : '' }}>
