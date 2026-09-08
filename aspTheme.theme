@@ -392,6 +392,11 @@ function aspTheme_preprocess_views_view_fields__rp_documentation_index(&$variabl
         'description' => $description,
       ];
     }
+    // Members render in field_cider_resources delta order, which is
+    // arbitrary; sort them by the name the row displays so a group's
+    // resources read alphabetically (matches the listing-wide displayed-name
+    // sort in operations_cider_views_pre_render()).
+    usort($resources, fn($a, $b) => strcasecmp($a['title'], $b['title']));
     $variables['rp_group_resources'] = $resources;
 
     // Provide slug and node ID for anchor links and ARA banner.
