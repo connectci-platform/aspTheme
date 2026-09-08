@@ -358,6 +358,22 @@ function aspTheme_preprocess_views_view__rp_documentation_index(&$variables) {
  *
  * For resource_group rows, adds child resources to render as an inline table.
  */
+/**
+ * Trims a listing blurb at a word boundary instead of mid-word.
+ *
+ * Fallback for resources whose description has no summary: cut near 200
+ * characters at the last space so the blurb never ends mid-word.
+ */
+function _asptheme_rp_listing_trim(string $text): string {
+  $text = trim($text);
+  if (mb_strlen($text) <= 200) {
+    return $text;
+  }
+  $cut = mb_substr($text, 0, 200);
+  $space = mb_strrpos($cut, ' ');
+  return rtrim($space ? mb_substr($cut, 0, $space) : $cut, " \t.,;:") . '…';
+}
+
 function aspTheme_preprocess_views_view_fields__rp_documentation_index(&$variables) {
   $row = $variables['row'];
   $node = $row->_entity ?? NULL;
@@ -379,8 +395,7 @@ function aspTheme_preprocess_views_view_fields__rp_documentation_index(&$variabl
           $description = check_markup($field->summary, $field->format);
         }
         else {
-          $text = strip_tags($field->processed);
-          $description = mb_strlen($text) > 200 ? mb_substr($text, 0, 200) . '...' : $text;
+          $description = _asptheme_rp_listing_trim(strip_tags($field->processed));
         }
       }
       $short = $resource->hasField('field_cider_short_name') && !$resource->get('field_cider_short_name')->isEmpty()
@@ -415,8 +430,7 @@ function aspTheme_preprocess_views_view_fields__rp_documentation_index(&$variabl
         $description = check_markup($field->summary, $field->format);
       }
       else {
-        $text = strip_tags($field->processed);
-        $description = mb_strlen($text) > 200 ? mb_substr($text, 0, 200) . '...' : $text;
+        $description = _asptheme_rp_listing_trim(strip_tags($field->processed));
       }
     }
     $short = $node->hasField('field_cider_short_name') && !$node->get('field_cider_short_name')->isEmpty()
@@ -450,8 +464,7 @@ function aspTheme_preprocess_node__resource_group(&$variables) {
           $description = check_markup($field->summary, $field->format);
         }
         else {
-          $text = strip_tags($field->processed);
-          $description = mb_strlen($text) > 200 ? mb_substr($text, 0, 200) . '...' : $text;
+          $description = _asptheme_rp_listing_trim(strip_tags($field->processed));
         }
       }
       $short = $resource->hasField('field_cider_short_name') && !$resource->get('field_cider_short_name')->isEmpty()
