@@ -307,6 +307,49 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
   // User-specific cache context (each user sees their own panel data;
   // anonymous traffic shares a single cache entry).
   $variables['#cache']['contexts'][] = 'user';
+
+  // ARA recommendation banner config, consumed by js/rp-ara-banner.js. The
+  // endpoint origin/path is theme configuration only — never derived from
+  // the request — so the JS cannot be pointed at an arbitrary host via the
+  // URL or a fetched payload.
+  $variables['#attached']['drupalSettings']['aspTheme']['ara'] = [
+    'endpoint' => _asptheme_ara_endpoint(),
+    'resourceKey' => _asptheme_ara_resource_key($node),
+  ];
+}
+
+/**
+ * Returns the ARA recommendations API endpoint the banner JS should fetch.
+ *
+ * The 'ara_endpoint' theme setting wins when configured; otherwise the
+ * hardcoded production default applies. The JS appends only the URL-encoded
+ * ref to this value, so the origin and path stay under theme control.
+ *
+ * @return string
+ *   Absolute URL, trailing slash included.
+ */
+function _asptheme_ara_endpoint() {
+  $configured = theme_get_setting('ara_endpoint');
+  return is_string($configured) && $configured !== ''
+    ? $configured
+    : 'https://ara.access-ci.org/api/recommendations/';
+}
+
+/**
+ * Determines the key ARA uses to identify this resource's recommendations.
+ *
+ * Contract with the ARA team is still pending; we assume the global
+ * resource ID (field_access_global_resource_id) is the key ARA's payload
+ * will use to namespace per-resource recommendations. Returns NULL when the
+ * node has no such value, in which case the JS falls back to the legacy
+ * ara_context behavior for this resource.
+ */
+function _asptheme_ara_resource_key($node) {
+  if ($node->hasField('field_access_global_resource_id') && !$node->get('field_access_global_resource_id')->isEmpty()) {
+    $value = trim((string) $node->get('field_access_global_resource_id')->value);
+    return $value !== '' ? $value : NULL;
+  }
+  return NULL;
 }
 
 /**
