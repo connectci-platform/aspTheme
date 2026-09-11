@@ -383,11 +383,8 @@ function aspTheme_preprocess_views_view_fields__rp_documentation_index(&$variabl
           $description = mb_strlen($text) > 200 ? mb_substr($text, 0, 200) . '...' : $text;
         }
       }
-      $short = $resource->hasField('field_cider_short_name') && !$resource->get('field_cider_short_name')->isEmpty()
-        ? $resource->get('field_cider_short_name')->value
-        : NULL;
       $resources[] = [
-        'title' => $short ?: $resource->label(),
+        'title' => $resource->label(),
         'url' => \Drupal::service('path_alias.manager')->getAliasByPath('/node/' . $resource->id()),
         'description' => $description,
       ];
@@ -414,11 +411,8 @@ function aspTheme_preprocess_views_view_fields__rp_documentation_index(&$variabl
         $description = mb_strlen($text) > 200 ? mb_substr($text, 0, 200) . '...' : $text;
       }
     }
-    $short = $node->hasField('field_cider_short_name') && !$node->get('field_cider_short_name')->isEmpty()
-      ? $node->get('field_cider_short_name')->value
-      : NULL;
     $variables['rp_individual_resource'] = [
-      'title' => $short ?: $node->label(),
+      'title' => $node->label(),
       'url' => \Drupal::service('path_alias.manager')->getAliasByPath('/node/' . $node->id()),
       'description' => $description,
     ];
@@ -449,11 +443,8 @@ function aspTheme_preprocess_node__resource_group(&$variables) {
           $description = mb_strlen($text) > 200 ? mb_substr($text, 0, 200) . '...' : $text;
         }
       }
-      $short = $resource->hasField('field_cider_short_name') && !$resource->get('field_cider_short_name')->isEmpty()
-        ? $resource->get('field_cider_short_name')->value
-        : NULL;
       $resources[] = [
-        'title' => $short ?: $resource->label(),
+        'title' => $resource->label(),
         'url' => \Drupal::service('path_alias.manager')->getAliasByPath('/node/' . $resource->id()),
         'description' => $description,
       ];
