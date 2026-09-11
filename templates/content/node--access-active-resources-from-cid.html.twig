@@ -101,7 +101,7 @@
 <article{{ attributes.addClass(classes) }}>
 
   {# ========== ARA Recommendation Banner ========== #}
-  <div id="ara-recommendation-banner" class="bg-primary-blue-bg text-primary-blue border-l-4 border-primary-blue p-4 mb-6 hidden">
+  <div id="ara-recommendation-banner" data-node-id="{{ node.id }}" class="bg-primary-blue-bg text-primary-blue border-l-4 border-primary-blue p-4 mb-6 hidden">
     <p class="font-bold mb-1">The ACCESS Resource Advisor recommends this resource for your work.</p>
     <p id="ara-recommendation-text" class="m-0 text-sm"></p>
     <button id="ara-dismiss" class="text-sm underline text-primary-blue mt-2 cursor-pointer bg-transparent border-0 p-0">Dismiss</button>
@@ -1141,38 +1141,6 @@
 
 
 </article>
-
-{# ========== ARA Banner JavaScript ========== #}
-<script>
-(function() {
-  var banner = document.getElementById('ara-recommendation-banner');
-  var textEl = document.getElementById('ara-recommendation-text');
-  var dismissBtn = document.getElementById('ara-dismiss');
-  var storageKey = 'ara_recommendation_{{ node.id }}';
-
-  // Check URL params first, then localStorage
-  var params = new URLSearchParams(window.location.search);
-  var araContext = params.get('ara_context');
-
-  if (araContext) {
-    localStorage.setItem(storageKey, araContext);
-  } else {
-    araContext = localStorage.getItem(storageKey);
-  }
-
-  if (araContext) {
-    textEl.textContent = araContext;
-    banner.classList.remove('hidden');
-  }
-
-  if (dismissBtn) {
-    dismissBtn.addEventListener('click', function() {
-      localStorage.removeItem(storageKey);
-      banner.classList.add('hidden');
-    });
-  }
-})();
-</script>
 
 {# ========== SSH Login Selector JavaScript ========== #}
 <script>
