@@ -163,11 +163,6 @@ table.views-table tr td {
   content: "";
   @apply z-10 absolute inset-0 bg-transparent pointer-events-auto;
 }
-.layout-content .block-views-exposed-filter-blockcssn-directory-page-1 .form-item-search-api-fulltext,
-.region-sidebar-first .form-item-items-per-page,
-.layout-sidebar-first .facets-reset .facet-item__count {
-  @apply hidden;
-}
 
 .cssn-photo {
   width: 110px;
@@ -214,6 +209,10 @@ body.page-node-6117:not(.user-logged-in) .layout__region--second {
   [data-drupal-selector="views-exposed-form-recurring-events-event-series-block-1"] {
     @apply hidden;
   }
+}
+
+#views-exposed-form-cssn-directory-page-1 .form-item, .form-actions {
+  @apply mt-0;
 }
 
 /* Announcment side titles */
