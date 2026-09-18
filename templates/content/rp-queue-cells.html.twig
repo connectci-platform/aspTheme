@@ -13,10 +13,12 @@
  *   col_jobs: which optional columns the table is rendering at all. A cell is
  *   emitted for every enabled column, so rows stay aligned.
  * - show_hardware: TRUE to fill the hardware cells from `paragraph`; FALSE
- *   emits them empty and shaded `bg-light-gray` (a queue heading row describes the queue, not a node
- *   type, so an empty cell is honest where "N/A" would not be).
- * - show_metrics: TRUE to fill wait/wall/jobs; FALSE emits them empty and
- *   shaded `bg-light-gray`. The
+ *   emits them shaded `bg-light-gray` with only a visually-hidden "Varies by
+ *   node type" note (a queue heading row describes the queue, not a node
+ *   type, so an empty cell is honest where "N/A" would not be, but a screen
+ *   reader should not land on a run of silent cells).
+ * - show_metrics: TRUE to fill wait/wall/jobs; FALSE emits them shaded
+ *   `bg-light-gray` with a visually-hidden "See queue heading" note. The
  *   metrics are per queue, so only one row of a group carries them.
  * - paragraph: the rp_queue_spec paragraph for this row, when show_hardware.
  * - metrics: this queue's decoded metrics, or NULL (renders "N/A").
@@ -43,6 +45,8 @@
       {% else %}
         <span class="text-dark-gray">N/A</span>
       {% endif %}
+    {% else %}
+      <span class="sr-only">Varies by node type</span>
     {% endif %}
   </td>
 {% endif %}
@@ -63,6 +67,8 @@
       {% else %}
         <span class="text-dark-gray">N/A</span>
       {% endif %}
+    {% else %}
+      <span class="sr-only">Varies by node type</span>
     {% endif %}
   </td>
 {% endif %}
@@ -79,6 +85,8 @@
       {% else %}
         <span class="text-dark-gray">N/A</span>
       {% endif %}
+    {% else %}
+      <span class="sr-only">Varies by node type</span>
     {% endif %}
   </td>
 {% endif %}
@@ -87,6 +95,8 @@
     {% if show_hardware %}
       {% set node_ram = fmt.gb_size(paragraph.field_rp_vram.value)|trim %}
       {% if node_ram %}{{ node_ram }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}
+    {% else %}
+      <span class="sr-only">Varies by node type</span>
     {% endif %}
   </td>
 {% endif %}
@@ -102,6 +112,8 @@
       {% else %}
         <span class="text-dark-gray" aria-label="Not applicable">N/A</span>
       {% endif %}
+    {% else %}
+      <span class="sr-only">Varies by node type</span>
     {% endif %}
   </td>
 {% endif %}
@@ -142,6 +154,8 @@
       {% else %}
         <span class="text-dark-gray" aria-label="Not applicable">N/A</span>
       {% endif %}
+    {% else %}
+      <span class="sr-only">See queue heading</span>
     {% endif %}
   </td>
 {% endif %}
@@ -198,6 +212,8 @@
           <span class="text-xs" style="color:#c0392b" aria-hidden="true">max {{ max_wall_label }}</span>
         {% endif %}
       {% endif %}
+    {% else %}
+      <span class="sr-only">See queue heading</span>
     {% endif %}
   </td>
 {% endif %}
@@ -209,6 +225,8 @@
       {% else %}
         <span class="text-dark-gray">N/A</span>
       {% endif %}
+    {% else %}
+      <span class="sr-only">See queue heading</span>
     {% endif %}
   </td>
 {% endif %}
