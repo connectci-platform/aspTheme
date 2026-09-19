@@ -1,0 +1,34 @@
+{#
+/**
+ * @file
+ * Value-formatting macros shared by the RP documentation templates.
+ *
+ * These live in their own file rather than in the page template's `_self`
+ * because a macro imported from `_self` is not reachable from an included
+ * template — passing it in as a variable silently yields empty output — and
+ * the queue-specs cells partial needs both of them.
+ */
+#}
+{# Format a GB integer as decimal TB when it divides evenly into 1000 GB,
+   otherwise keep GB. Storage capacity convention: 1 TB = 1000 GB. Drupal's
+   format_size() expects bytes and uses binary units, so it can't be used here. #}
+{% macro gb_size(gb) %}
+{# An empty integer field resolves to [] (FieldItemList::getValue) in Twig,
+   not null, so coerce any iterable down to its first scalar value first. #}
+{%- if gb is iterable -%}{%- set gb = gb|first -%}{%- endif -%}
+{%- if gb is not null and gb != '' -%}
+  {%- if gb % 1000 == 0 -%}{{ gb // 1000 }} TB{%- else -%}{{ gb }} GB{%- endif -%}
+{%- endif -%}
+{% endmacro %}
+
+{# Compact, minutes-aware wall-clock label: "48h", "30m", "1h30m". The field
+   stores whole minutes; hours alone would round a 30-minute debug queue to
+   "0h". Empty renders as nothing, so callers gate on the value first. #}
+{% macro wall_label(minutes) %}
+{%- if minutes is iterable -%}{%- set minutes = minutes|first -%}{%- endif -%}
+{%- if minutes is not empty -%}
+  {%- set h = (minutes // 60) -%}
+  {%- set m = minutes % 60 -%}
+  {{- (h > 0 ? h ~ 'h' : '') ~ (m > 0 ? m ~ 'm' : '') -}}
+{%- endif -%}
+{% endmacro %}
