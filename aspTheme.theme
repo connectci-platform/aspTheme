@@ -7,6 +7,7 @@
 
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Markup;
+use Drupal\operations_cider\Service\QueueSpecGrouper;
 
 /**
  * Implements hook_form_BASE_FORM_ID_alter() for \Drupal\node\NodeForm.
@@ -243,6 +244,32 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
       $variables['queue_metrics_updated'] = $decoded['updated'] ?? NULL;
     }
   }
+
+  // Group the queue-spec paragraphs by queue name for the table.
+  //
+  // The paragraphs are one row per queue-and-hardware pair, but the metrics
+  // above are per queue, so a queue with several node types would repeat its
+  // wait/wall/job numbers on every row and read as several queues. Grouping
+  // happens in PHP rather than Twig because "same value on every row" is
+  // awkward to express in a template and worth a unit test of its own.
+  //
+  // field_rp_queue_specs_items stays in place: the template still walks it to
+  // decide which optional columns have data anywhere in the table.
+  $queue_rows = [];
+  foreach ($variables['field_rp_queue_specs_items'] as $paragraph) {
+    // An empty field's ->value is NULL here but [] once Twig touches it, so
+    // flatten to scalars on this side and let the template compare plainly.
+    $max_wall = $paragraph->hasField('field_rp_max_wall_time')
+      ? $paragraph->get('field_rp_max_wall_time')->value
+      : NULL;
+    $queue_rows[] = [
+      'name' => (string) ($paragraph->get('field_rp_queue_name')->value ?? ''),
+      'purpose' => (string) ($paragraph->get('field_rp_queue_purpose')->value ?? ''),
+      'max_wall' => ($max_wall === NULL || $max_wall === '') ? NULL : (int) $max_wall,
+      'paragraph' => $paragraph,
+    ];
+  }
+  $variables['queue_groups'] = QueueSpecGrouper::group($queue_rows, $variables['queue_metrics']);
 
   // Resource slug for the embedded QA bot — uses the parent Group's
   // title if available, otherwise the resource's own display name. The

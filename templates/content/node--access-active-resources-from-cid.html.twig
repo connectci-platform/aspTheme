@@ -32,18 +32,6 @@
 %}
 {{ attach_library('aspTheme/node') }}
 
-{# Format a GB integer as decimal TB when it divides evenly into 1000 GB,
-   otherwise keep GB. Storage capacity convention: 1 TB = 1000 GB. Drupal's
-   format_size() expects bytes and uses binary units, so it can't be used here. #}
-{% macro gb_size(gb) %}
-{# An empty integer field resolves to [] (FieldItemList::getValue) in Twig,
-   not null, so coerce any iterable down to its first scalar value first. #}
-{%- if gb is iterable -%}{%- set gb = gb|first -%}{%- endif -%}
-{%- if gb is not null and gb != '' -%}
-  {%- if gb % 1000 == 0 -%}{{ gb // 1000 }} TB{%- else -%}{{ gb }} GB{%- endif -%}
-{%- endif -%}
-{% endmacro %}
-
 {# Three-column software table (Application / Description / Research
    Discipline). Shared by the SDS and OnDemand lists, which differ only in
    where the application name links:
@@ -87,7 +75,8 @@
     </table>
   </div>
 {% endmacro %}
-{% import _self as fmt %}
+{% import _self as tpl %}
+{% import '@aspTheme/content/rp-fmt.html.twig' as fmt %}
 
 {# Extract field values for easier access in the template #}
 {% set rp_description = node.field_rp_description.value %}
@@ -349,7 +338,6 @@
          entirely rather than rendering a full column of "N/A". Empty
          integer/text fields resolve to [] in Twig, so coerce to scalar first. #}
       {% set has_queue_rows = false %}
-      {% set col_purpose = false %}
       {% set col_cpu = false %}
       {% set col_gpu = false %}
       {% set col_nodes = false %}
@@ -363,7 +351,6 @@
         {% if qname %}
           {% set has_queue_rows = true %}
           {% set qm = queue_metrics[qname] ?? null %}
-          {% if paragraph.field_rp_queue_purpose.value|default('') %}{% set col_purpose = true %}{% endif %}
           {% set v = paragraph.field_rp_cpus.value %}{% if v is iterable %}{% set v = v|first %}{% endif %}
           {% set n = paragraph.field_rp_cpu_count.value %}{% if n is iterable %}{% set n = n|first %}{% endif %}
           {% if v or (n and n > 0) %}{% set col_cpu = true %}{% endif %}
@@ -404,14 +391,24 @@
              sparkline <svg> and the inline style attributes out of the metric
              cells. data-rows makes the JS clamp on a row boundary. #}
           {{ attach_library('expandable_text/expandable_text') }}
-          <div class="expandable-text" data-rows="4">
+          {# Never cut mid-queue: walk the groups adding each one's row cost —
+             1 for a single-row queue, 1 heading + its hardware rows otherwise —
+             and stop at the first total that reaches the 4-row target. A total
+             that covers every group is emitted anyway; measureRows() then sees
+             no overflow and adds no toggle. #}
+          {% set clamp_rows = 0 %}
+          {% for group in queue_groups %}
+            {% if clamp_rows < 4 %}
+              {% set clamp_rows = clamp_rows + (group.single ? 1 : 1 + group.rows|length) %}
+            {% endif %}
+          {% endfor %}
+          <div class="expandable-text" data-rows="{{ clamp_rows }}">
           <div class="expandable-text__content" id="rp-queue-specs-content">
           <div>
             <table class="w-full border-collapse">
               <thead>
                 <tr>
-                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Name</th>
-                  {% if col_purpose %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Purpose</th>{% endif %}
+                  <th class="text-left py-2 pr-4 font-semibold align-bottom">Queue</th>
                   {% if col_cpu %}<th class="text-left py-2 pr-4 font-semibold align-bottom">CPU cores / node</th>{% endif %}
                   {% if col_gpu %}<th class="text-left py-2 pr-4 font-semibold align-bottom">GPUs / node</th>{% endif %}
                   {% if col_nodes %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Num nodes</th>{% endif %}
@@ -434,197 +431,75 @@
                   {% endif %}
                 </tr>
               </thead>
-              <tbody>
-                {% for paragraph in field_rp_queue_specs_items %}
-                  {% set qname = paragraph.field_rp_queue_name.value|default('') %}
-                  {% if qname %}
-                  {% set qmetrics = queue_metrics[qname] ?? null %}
-                  {# Field stores whole minutes. Chart math works in hours to
-                     match the hour-based avg/range in the same cell, so keep a
-                     (possibly fractional) hours value for positioning. #}
-                  {% set max_wall_min = paragraph.field_rp_max_wall_time.value %}
-                  {% if max_wall_min is iterable %}{% set max_wall_min = max_wall_min|first %}{% endif %}
-                  {% set max_wall_min = max_wall_min is not empty ? max_wall_min : null %}
-                  {% set max_wall = max_wall_min is not null ? max_wall_min / 60 : null %}
-                  {# Compact, minutes-aware chip label: "48h", "30m", "1h30m". #}
-                  {% set max_wall_label = null %}
-                  {% if max_wall_min is not null %}
-                    {% set mw_h = (max_wall_min // 60) %}
-                    {% set mw_m = max_wall_min % 60 %}
-                    {% set max_wall_label = (mw_h > 0 ? mw_h ~ 'h' : '') ~ (mw_m > 0 ? mw_m ~ 'm' : '') %}
+              {# One <tbody> per queue. The hardware rows (one per node type) are
+                 the paragraphs; the queue-level metrics render once, on the
+                 group's heading row, rather than repeating down the group and
+                 reading as several independently-measured queues. Grouping is
+                 done in QueueSpecGrouper (see aspTheme.theme). #}
+              {% set cells = {
+                col_cpu: col_cpu,
+                col_gpu: col_gpu,
+                col_nodes: col_nodes,
+                col_ram: col_ram,
+                col_max_wall: col_max_wall,
+                col_wait: col_wait,
+                col_wall: col_wall,
+                col_jobs: col_jobs,
+              } %}
+              {% for group in queue_groups %}
+                {% set base = cells|merge({
+                  qname: group.name,
+                  metrics: group.metrics,
+                  limit_min: group.max_wall,
+                  idx: loop.index,
+                }) %}
+                <tbody class="rp-queue-group">
+                  {% if group.single %}
+                    {# One node type: name, purpose, hardware and metrics all fit
+                       on a single row, so the page doesn't grow for the
+                       resources (most of them) that never repeat a queue name. #}
+                    {% set row = group.rows|first %}
+                    <tr class="rp-queue-group__single">
+                      <th scope="row" class="text-left py-2 pr-4 font-semibold align-top">
+                        {{ group.name }}
+                        {% if row.purpose %}<div class="rp-queue-group__purpose">{{ row.purpose }}</div>{% endif %}
+                      </th>
+                      {% include '@aspTheme/content/rp-queue-cells.html.twig' with base|merge({
+                        paragraph: row.paragraph,
+                        show_hardware: true,
+                        show_metrics: true,
+                      }) only %}
+                    </tr>
+                  {% else %}
+                    <tr class="rp-queue-group__heading">
+                      <th scope="rowgroup" class="text-left py-2 pr-4 font-semibold align-top">
+                        {{ group.name }}
+                        {# Only a purpose every row agrees on belongs to the queue;
+                           where they differ each hardware row carries its own. #}
+                        {% if group.purpose %}<div class="rp-queue-group__purpose">{{ group.purpose }}</div>{% endif %}
+                      </th>
+                      {% include '@aspTheme/content/rp-queue-cells.html.twig' with base|merge({
+                        paragraph: null,
+                        show_hardware: false,
+                        show_metrics: true,
+                      }) only %}
+                    </tr>
+                    {% for row in group.rows %}
+                      <tr class="rp-queue-group__row">
+                        {% set row_label = group.purpose is null and row.purpose ? row.purpose : null %}
+                        <td class="rp-queue-group__row-label py-2 pr-4 align-top{{ row_label is null ? ' bg-light-gray' }}">
+                          {% if row_label %}{{ row_label }}{% endif %}
+                        </td>
+                        {% include '@aspTheme/content/rp-queue-cells.html.twig' with base|merge({
+                          paragraph: row.paragraph,
+                          show_hardware: true,
+                          show_metrics: false,
+                        }) only %}
+                      </tr>
+                    {% endfor %}
                   {% endif %}
-                  <tr>
-                    <td class="py-2 pr-4 font-semibold align-top">{{ qname }}</td>
-                    {% if col_purpose %}
-                    <td class="py-2 pr-4 text-sm align-top">
-                      {% set qpurpose = paragraph.field_rp_queue_purpose.value|default('') %}
-                      {% if qpurpose %}{{ qpurpose }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}
-                    </td>
-                    {% endif %}
-                    {% if col_cpu %}
-                    <td class="py-2 pr-4 align-top">
-                      {# Empty integer/text fields resolve to [] in Twig; coerce
-                         to first scalar so blank counts don't render as 0. #}
-                      {% set cpu_type = paragraph.field_rp_cpus.value %}
-                      {% if cpu_type is iterable %}{% set cpu_type = cpu_type|first %}{% endif %}
-                      {% set cpu_count = paragraph.field_rp_cpu_count.value %}
-                      {% if cpu_count is iterable %}{% set cpu_count = cpu_count|first %}{% endif %}
-                      {% if cpu_type or (cpu_count and cpu_count > 0) %}
-                        {{ cpu_type|default('') }}{% if cpu_count and cpu_count > 0 %} ({{ cpu_count }} cores){% endif %}
-                      {% else %}
-                        <span class="text-dark-gray">N/A</span>
-                      {% endif %}
-                    </td>
-                    {% endif %}
-                    {% if col_gpu %}
-                    <td class="py-2 pr-4 align-top">
-                      {# Show GPU type/vRAM even when the per-node count is blank;
-                         the count is an optional prefix. N/A only when the
-                         whole cell is empty. Coerce [] (empty field) to scalar. #}
-                      {% set gpu_count = paragraph.field_rp_gpu_count.value %}
-                      {% if gpu_count is iterable %}{% set gpu_count = gpu_count|first %}{% endif %}
-                      {% set gpu_type = paragraph.field_rp_gpus.value %}
-                      {% if gpu_type is iterable %}{% set gpu_type = gpu_type|first %}{% endif %}
-                      {% set gpu_vram = paragraph.field_rp_gpu_vram.value %}
-                      {% if gpu_vram is iterable %}{% set gpu_vram = gpu_vram|first %}{% endif %}
-                      {% if gpu_type or gpu_vram or (gpu_count and gpu_count > 0) %}
-                        {% if gpu_count and gpu_count > 0 %}{{ gpu_count }} {% endif %}{{ gpu_type|default('') }}{% if gpu_vram %} ({{ gpu_vram }} GB vRAM){% endif %}
-                      {% else %}
-                        <span class="text-dark-gray">N/A</span>
-                      {% endif %}
-                    </td>
-                    {% endif %}
-                    {% if col_nodes %}
-                    <td class="py-2 pr-4 align-top">
-                      {# An unknown node count may be left blank or stored as 0;
-                         treat both as "not reported" rather than showing 0.
-                         An empty integer field's .value resolves to [] in Twig,
-                         so coerce any iterable to its first scalar first. #}
-                      {% set node_count = paragraph.field_rp_node_count.value %}
-                      {% if node_count is iterable %}{% set node_count = node_count|first %}{% endif %}
-                      {% if node_count is not null and node_count != '' and node_count > 0 %}
-                        {{ node_count|number_format }}
-                      {% else %}
-                        <span class="text-dark-gray">N/A</span>
-                      {% endif %}
-                    </td>
-                    {% endif %}
-                    {% if col_ram %}
-                    <td class="py-2 pr-4 align-top">
-                      {% set node_ram = fmt.gb_size(paragraph.field_rp_vram.value)|trim %}
-                      {% if node_ram %}{{ node_ram }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}
-                    </td>
-                    {% endif %}
-                    {% if col_max_wall %}
-                    <td class="py-2 pr-4 align-top">
-                      {% if max_wall is not null %}
-                        {{ max_wall_label }}
-                      {% else %}
-                        <span class="text-dark-gray" aria-label="Not applicable">N/A</span>
-                      {% endif %}
-                    </td>
-                    {% endif %}
-                    {% if col_wait %}
-                    <td class="py-2 pr-4 align-top">
-                      {% if qmetrics and qmetrics.daily_wait|default([])|length > 1 %}
-                        {% set vals = qmetrics.daily_wait %}
-                        {% set avg = qmetrics.wait_time %}
-                        {% set spark_max = vals|first %}
-                        {% for v in vals %}{% if v > spark_max %}{% set spark_max = v %}{% endif %}{% endfor %}
-                        {% set spark_min = spark_max %}
-                        {% for v in vals %}{% if v < spark_min %}{% set spark_min = v %}{% endif %}{% endfor %}
-                        {% if spark_max > 0 %}
-                          {% set avg_y = (30 - (avg / spark_max * 28))|round(1) %}
-                          {% set avg_y = avg_y < 2 ? 2 : (avg_y > 30 ? 30 : avg_y) %}
-                          <div class="inline-flex flex-col items-start">
-                            <svg class="rp-sparkline" width="120" height="32" viewBox="0 0 120 32" role="img" focusable="false" aria-labelledby="wait-title-{{ loop.index }}">
-                              <title id="wait-title-{{ loop.index }}">{{ qname }} wait time: average {{ avg|number_format(1) }} hours, range {{ spark_min|round(1) }} to {{ spark_max|round(1) }} hours over 30 days</title>
-                              <line x1="1" y1="{{ avg_y }}" x2="112" y2="{{ avg_y }}" stroke="#999" stroke-width="0.75" stroke-dasharray="3,2" />
-                              {# Number below the chart (matches the Wall Time cell) so it never overlaps in the small SVG. #}
-                              <polyline fill="none" stroke="#107180" stroke-width="1.5"
-                                points="{% for v in vals %}{{ (loop.index0 / (vals|length - 1) * 110 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
-                            </svg>
-                            <span class="text-xs text-dark-gray" aria-hidden="true">{{ spark_min|round(1) }}–{{ spark_max|round(1) }} hrs · avg {{ avg|number_format(1) }}</span>
-                          </div>
-                        {% else %}
-                          <span>0</span>
-                          <span class="sr-only">{{ qname }} wait time: 0 hours</span>
-                        {% endif %}
-                      {% elseif qmetrics and qmetrics.wait_time is not null %}
-                        {{ qmetrics.wait_time|number_format(1) }}
-                        <span class="sr-only">hours</span>
-                      {% else %}
-                        <span class="text-dark-gray" aria-label="Not applicable">N/A</span>
-                      {% endif %}
-                    </td>
-                    {% endif %}
-                    {% if col_wall %}
-                    <td class="py-2 pr-4 align-top">
-                      {% if qmetrics and qmetrics.daily_wall|default([])|length > 1 %}
-                        {% set vals = qmetrics.daily_wall %}
-                        {% set avg = qmetrics.wall_time %}
-                        {% set spark_max = vals|first %}
-                        {% for v in vals %}{% if v > spark_max %}{% set spark_max = v %}{% endif %}{% endfor %}
-                        {% set spark_min = spark_max %}
-                        {% for v in vals %}{% if v < spark_min %}{% set spark_min = v %}{% endif %}{% endfor %}
-                        {% if spark_max > 0 %}
-                          {% set avg_y = (30 - (avg / spark_max * 28))|round(1) %}
-                          {% set avg_y = avg_y < 2 ? 2 : (avg_y > 30 ? 30 : avg_y) %}
-                          <div class="inline-flex flex-col items-start">
-                            <svg class="rp-sparkline" width="120" height="32" viewBox="0 0 120 32" role="img" focusable="false" aria-labelledby="wall-title-{{ loop.index }}">
-                              <title id="wall-title-{{ loop.index }}">{{ qname }} wall time: average {{ avg|number_format(1) }} hours, range {{ spark_min|round(1) }} to {{ spark_max|round(1) }} hours over 30 days{% if max_wall is not null %}, wall-time limit {{ max_wall_label }}{% endif %}</title>
-                              <line x1="1" y1="{{ avg_y }}" x2="112" y2="{{ avg_y }}" stroke="#999" stroke-width="0.75" stroke-dasharray="3,2" />
-                              {# Draw the max as a red ceiling line at its true position on the 0–spark_max scale.
-                                 When max ≤ spark_max the line sits inside the chart (and the trend may cross it —
-                                 e.g. the limit was lowered but the 30-day window still holds longer jobs). When the
-                                 max is modestly above the observed peak, clamp the line to the top. The value itself
-                                 renders as text below the chart (not next to the line) to avoid label overlap. #}
-                              {% if max_wall is not null and max_wall <= spark_max * 1.5 %}
-                                {% set max_y = (30 - (max_wall / spark_max * 28))|round(1) %}
-                                {% set max_y = max_y < 2 ? 2 : (max_y > 30 ? 30 : max_y) %}
-                                <line x1="1" y1="{{ max_y }}" x2="112" y2="{{ max_y }}" stroke="#c0392b" stroke-width="0.75" />
-                              {% endif %}
-                              {# Reference lines only in the chart; avg extends full-width now that its label moved below. #}
-                              <polyline fill="none" stroke="#107180" stroke-width="1.5"
-                                points="{% for v in vals %}{{ (loop.index0 / (vals|length - 1) * 110 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
-                            </svg>
-                            {# All numbers render below the chart so nothing overlaps in the small SVG. #}
-                            <span class="text-xs text-dark-gray" aria-hidden="true">{{ spark_min|round(1) }}–{{ spark_max|round(1) }} hrs · avg {{ avg|number_format(1) }}{% if max_wall is not null %} · limit {{ max_wall_label }}{% endif %}</span>
-                          </div>
-                        {% else %}
-                          <span>0</span>
-                          <span class="sr-only">{{ qname }} wall time: 0 hours</span>
-                          {% if max_wall is not null %}
-                            <span class="text-xs" style="color:#c0392b" aria-hidden="true">max {{ max_wall_label }}</span>
-                          {% endif %}
-                        {% endif %}
-                      {% elseif qmetrics and qmetrics.wall_time is not null %}
-                        {{ qmetrics.wall_time|number_format(1) }}
-                        <span class="sr-only">hours</span>
-                        {% if max_wall is not null %}
-                          <span class="text-xs" style="color:#c0392b" aria-hidden="true"> · max {{ max_wall_label }}</span>
-                        {% endif %}
-                      {% else %}
-                        <span class="text-dark-gray" aria-label="Not applicable">N/A</span>
-                        {% if max_wall is not null %}
-                          <span class="text-xs" style="color:#c0392b" aria-hidden="true">max {{ max_wall_label }}</span>
-                        {% endif %}
-                      {% endif %}
-                    </td>
-                    {% endif %}
-                    {% if col_jobs %}
-                    <td class="py-2 text-right align-top">
-                      {% if qmetrics and qmetrics.job_count is not null %}
-                        {{ qmetrics.job_count|number_format(0) }}
-                      {% else %}
-                        <span class="text-dark-gray">N/A</span>
-                      {% endif %}
-                    </td>
-                    {% endif %}
-                  </tr>
-                  {% endif %}
-                {% endfor %}
-              </tbody>
+                </tbody>
+              {% endfor %}
             </table>
           </div>
           </div>{# /.expandable-text__content #}
@@ -719,7 +594,7 @@
                 <label class="sr-only" for="rp-sds-software-filter">Filter software by name</label>
                 <input type="search" id="rp-sds-software-filter" class="rp-sds-software__filter border border-solid border-light-gray px-2 py-1 text-sm w-full" placeholder="Filter by name" autocomplete="off">
               </div>
-              {{ fmt.software_table(sds_software, 'sds', 'rp-software-scroll') }}
+              {{ tpl.software_table(sds_software, 'sds', 'rp-software-scroll') }}
               <p class="rp-sds-software__empty text-sm text-dark-gray mt-3" hidden>No software matches that name.</p>
               {# Kept in the DOM from first render — injected live regions
                  announce unreliably. #}
@@ -734,7 +609,7 @@
             <h3 class="font-bold mt-6">Available via ACCESS OnDemand</h3>
             {# Link to the resource's OnDemand instance (the existing field_rp_ondemand_url, already set up as ondemand_url). #}
             <p class="text-sm text-dark-gray mb-3">Software available through {% if ondemand_url %}<a href="{{ ondemand_url }}" class="text-md-teal no-underline hover--underline">ACCESS OnDemand on {{ node.label }}</a>{% else %}ACCESS OnDemand on {{ node.label }}{% endif %}.</p>
-            {{ fmt.software_table(ood_software, 'web_page') }}
+            {{ tpl.software_table(ood_software, 'web_page') }}
             </div>{# /.rp-ood-software #}
           {% endif %}
         </div>
