@@ -1,0 +1,232 @@
+{#
+/**
+ * @file
+ * Hardware and metric cells for one row of the queue specifications table.
+ *
+ * The table renders two row shapes — a queue heading row above its hardware
+ * rows, and a single row for a queue that has only one — and both need the
+ * same ~150 lines of sparkline markup, so the cells live here once and each
+ * shape switches the halves it wants on and off.
+ *
+ * Available variables:
+ * - col_cpu, col_gpu, col_nodes, col_ram, col_max_wall, col_wait, col_wall,
+ *   col_jobs: which optional columns the table is rendering at all. A cell is
+ *   emitted for every enabled column, so rows stay aligned.
+ * - show_hardware: TRUE to fill the hardware cells from `paragraph`; FALSE
+ *   emits them shaded `bg-light-gray` with only a visually-hidden "Varies by
+ *   node type" note (a queue heading row describes the queue, not a node
+ *   type, so an empty cell is honest where "N/A" would not be, but a screen
+ *   reader should not land on a run of silent cells).
+ * - show_metrics: TRUE to fill wait/wall/jobs; FALSE emits them shaded
+ *   `bg-light-gray` with a visually-hidden "See queue heading" note. The
+ *   metrics are per queue, so only one row of a group carries them.
+ * - paragraph: the rp_queue_spec paragraph for this row, when show_hardware.
+ * - metrics: this queue's decoded metrics, or NULL (renders "N/A").
+ * - limit_min: max wallclock in minutes to draw as the ceiling on the wall
+ *   sparkline, or NULL. This is the queue-level value, which can be NULL on a
+ *   multi-row queue whose rows disagree, so it is passed in rather than read
+ *   from the paragraph.
+ * - qname: queue name, for the sparkline <title> text.
+ * - idx: group index, to keep the <title> element ids unique in the page.
+ */
+#}
+{% import '@aspTheme/content/rp-fmt.html.twig' as fmt %}
+{% if col_cpu %}
+  <td class="py-2 pr-4 align-top{{ not show_hardware ? ' bg-light-gray' }}">
+    {% if show_hardware %}
+      {# Empty integer/text fields resolve to [] in Twig; coerce to first
+         scalar so blank counts don't render as 0. #}
+      {% set cpu_type = paragraph.field_rp_cpus.value %}
+      {% if cpu_type is iterable %}{% set cpu_type = cpu_type|first %}{% endif %}
+      {% set cpu_count = paragraph.field_rp_cpu_count.value %}
+      {% if cpu_count is iterable %}{% set cpu_count = cpu_count|first %}{% endif %}
+      {% if cpu_type or (cpu_count and cpu_count > 0) %}
+        {{ cpu_type|default('') }}{% if cpu_count and cpu_count > 0 %} ({{ cpu_count }} cores){% endif %}
+      {% else %}
+        <span class="text-dark-gray">N/A</span>
+      {% endif %}
+    {% else %}
+      <span class="sr-only">Varies by node type</span>
+    {% endif %}
+  </td>
+{% endif %}
+{% if col_gpu %}
+  <td class="py-2 pr-4 align-top{{ not show_hardware ? ' bg-light-gray' }}">
+    {% if show_hardware %}
+      {# Show GPU type/vRAM even when the per-node count is blank; the count is
+         an optional prefix. N/A only when the whole cell is empty. Coerce []
+         (empty field) to scalar. #}
+      {% set gpu_count = paragraph.field_rp_gpu_count.value %}
+      {% if gpu_count is iterable %}{% set gpu_count = gpu_count|first %}{% endif %}
+      {% set gpu_type = paragraph.field_rp_gpus.value %}
+      {% if gpu_type is iterable %}{% set gpu_type = gpu_type|first %}{% endif %}
+      {% set gpu_vram = paragraph.field_rp_gpu_vram.value %}
+      {% if gpu_vram is iterable %}{% set gpu_vram = gpu_vram|first %}{% endif %}
+      {% if gpu_type or gpu_vram or (gpu_count and gpu_count > 0) %}
+        {% if gpu_count and gpu_count > 0 %}{{ gpu_count }} {% endif %}{{ gpu_type|default('') }}{% if gpu_vram %} ({{ gpu_vram }} GB vRAM){% endif %}
+      {% else %}
+        <span class="text-dark-gray">N/A</span>
+      {% endif %}
+    {% else %}
+      <span class="sr-only">Varies by node type</span>
+    {% endif %}
+  </td>
+{% endif %}
+{% if col_nodes %}
+  <td class="py-2 pr-4 align-top{{ not show_hardware ? ' bg-light-gray' }}">
+    {% if show_hardware %}
+      {# An unknown node count may be left blank or stored as 0; treat both as
+         "not reported" rather than showing 0. An empty integer field's .value
+         resolves to [] in Twig, so coerce any iterable to its first scalar. #}
+      {% set node_count = paragraph.field_rp_node_count.value %}
+      {% if node_count is iterable %}{% set node_count = node_count|first %}{% endif %}
+      {% if node_count is not null and node_count != '' and node_count > 0 %}
+        {{ node_count|number_format }}
+      {% else %}
+        <span class="text-dark-gray">N/A</span>
+      {% endif %}
+    {% else %}
+      <span class="sr-only">Varies by node type</span>
+    {% endif %}
+  </td>
+{% endif %}
+{% if col_ram %}
+  <td class="py-2 pr-4 align-top{{ not show_hardware ? ' bg-light-gray' }}">
+    {% if show_hardware %}
+      {% set node_ram = fmt.gb_size(paragraph.field_rp_vram.value)|trim %}
+      {% if node_ram %}{{ node_ram }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}
+    {% else %}
+      <span class="sr-only">Varies by node type</span>
+    {% endif %}
+  </td>
+{% endif %}
+{% if col_max_wall %}
+  <td class="py-2 pr-4 align-top{{ not show_hardware ? ' bg-light-gray' }}">
+    {% if show_hardware %}
+      {# This column is per node type, so it reads the row's own value, not the
+         queue-level limit_min used by the wall sparkline. #}
+      {% set row_wall_min = paragraph.field_rp_max_wall_time.value %}
+      {% if row_wall_min is iterable %}{% set row_wall_min = row_wall_min|first %}{% endif %}
+      {% if row_wall_min is not empty %}
+        {{ fmt.wall_label(row_wall_min)|trim }}
+      {% else %}
+        <span class="text-dark-gray" aria-label="Not applicable">N/A</span>
+      {% endif %}
+    {% else %}
+      <span class="sr-only">Varies by node type</span>
+    {% endif %}
+  </td>
+{% endif %}
+{# Chart math works in hours to match the hour-based avg/range printed in the
+   same cell, so keep a (possibly fractional) hours value for positioning. #}
+{% set max_wall = limit_min is not empty ? limit_min / 60 : null %}
+{% set max_wall_label = limit_min is not empty ? fmt.wall_label(limit_min)|trim : null %}
+{% if col_wait %}
+  <td class="py-2 pr-4 align-top{{ not show_metrics ? ' bg-light-gray' }}">
+    {% if show_metrics %}
+      {% if metrics and metrics.daily_wait|default([])|length > 1 %}
+        {% set vals = metrics.daily_wait %}
+        {% set avg = metrics.wait_time %}
+        {% set spark_max = vals|first %}
+        {% for v in vals %}{% if v > spark_max %}{% set spark_max = v %}{% endif %}{% endfor %}
+        {% set spark_min = spark_max %}
+        {% for v in vals %}{% if v < spark_min %}{% set spark_min = v %}{% endif %}{% endfor %}
+        {% if spark_max > 0 %}
+          {% set avg_y = (30 - (avg / spark_max * 28))|round(1) %}
+          {% set avg_y = avg_y < 2 ? 2 : (avg_y > 30 ? 30 : avg_y) %}
+          <div class="inline-flex flex-col items-start">
+            <svg class="rp-sparkline" width="120" height="32" viewBox="0 0 120 32" role="img" focusable="false" aria-labelledby="wait-title-{{ idx }}">
+              <title id="wait-title-{{ idx }}">{{ qname }} wait time: average {{ avg|number_format(1) }} hours, range {{ spark_min|round(1) }} to {{ spark_max|round(1) }} hours over 30 days</title>
+              <line x1="1" y1="{{ avg_y }}" x2="112" y2="{{ avg_y }}" stroke="#999" stroke-width="0.75" stroke-dasharray="3,2" />
+              {# Number below the chart (matches the Wall Time cell) so it never overlaps in the small SVG. #}
+              <polyline fill="none" stroke="#107180" stroke-width="1.5"
+                points="{% for v in vals %}{{ (loop.index0 / (vals|length - 1) * 110 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
+            </svg>
+            <span class="text-xs text-dark-gray" aria-hidden="true">{{ spark_min|round(1) }}–{{ spark_max|round(1) }} hrs · avg {{ avg|number_format(1) }}</span>
+          </div>
+        {% else %}
+          <span>0</span>
+          <span class="sr-only">{{ qname }} wait time: 0 hours</span>
+        {% endif %}
+      {% elseif metrics and metrics.wait_time is not null %}
+        {{ metrics.wait_time|number_format(1) }}
+        <span class="sr-only">hours</span>
+      {% else %}
+        <span class="text-dark-gray" aria-label="Not applicable">N/A</span>
+      {% endif %}
+    {% else %}
+      <span class="sr-only">See queue heading</span>
+    {% endif %}
+  </td>
+{% endif %}
+{% if col_wall %}
+  <td class="py-2 pr-4 align-top{{ not show_metrics ? ' bg-light-gray' }}">
+    {% if show_metrics %}
+      {% if metrics and metrics.daily_wall|default([])|length > 1 %}
+        {% set vals = metrics.daily_wall %}
+        {% set avg = metrics.wall_time %}
+        {% set spark_max = vals|first %}
+        {% for v in vals %}{% if v > spark_max %}{% set spark_max = v %}{% endif %}{% endfor %}
+        {% set spark_min = spark_max %}
+        {% for v in vals %}{% if v < spark_min %}{% set spark_min = v %}{% endif %}{% endfor %}
+        {% if spark_max > 0 %}
+          {% set avg_y = (30 - (avg / spark_max * 28))|round(1) %}
+          {% set avg_y = avg_y < 2 ? 2 : (avg_y > 30 ? 30 : avg_y) %}
+          <div class="inline-flex flex-col items-start">
+            <svg class="rp-sparkline" width="120" height="32" viewBox="0 0 120 32" role="img" focusable="false" aria-labelledby="wall-title-{{ idx }}">
+              <title id="wall-title-{{ idx }}">{{ qname }} wall time: average {{ avg|number_format(1) }} hours, range {{ spark_min|round(1) }} to {{ spark_max|round(1) }} hours over 30 days{% if max_wall is not null %}, wall-time limit {{ max_wall_label }}{% endif %}</title>
+              <line x1="1" y1="{{ avg_y }}" x2="112" y2="{{ avg_y }}" stroke="#999" stroke-width="0.75" stroke-dasharray="3,2" />
+              {# Draw the max as a red ceiling line at its true position on the 0–spark_max scale.
+                 When max ≤ spark_max the line sits inside the chart (and the trend may cross it —
+                 e.g. the limit was lowered but the 30-day window still holds longer jobs). When the
+                 max is modestly above the observed peak, clamp the line to the top. The value itself
+                 renders as text below the chart (not next to the line) to avoid label overlap. #}
+              {% if max_wall is not null and max_wall <= spark_max * 1.5 %}
+                {% set max_y = (30 - (max_wall / spark_max * 28))|round(1) %}
+                {% set max_y = max_y < 2 ? 2 : (max_y > 30 ? 30 : max_y) %}
+                <line x1="1" y1="{{ max_y }}" x2="112" y2="{{ max_y }}" stroke="#c0392b" stroke-width="0.75" />
+              {% endif %}
+              {# Reference lines only in the chart; avg extends full-width now that its label moved below. #}
+              <polyline fill="none" stroke="#107180" stroke-width="1.5"
+                points="{% for v in vals %}{{ (loop.index0 / (vals|length - 1) * 110 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
+            </svg>
+            {# All numbers render below the chart so nothing overlaps in the small SVG. #}
+            <span class="text-xs text-dark-gray" aria-hidden="true">{{ spark_min|round(1) }}–{{ spark_max|round(1) }} hrs · avg {{ avg|number_format(1) }}{% if max_wall is not null %} · limit {{ max_wall_label }}{% endif %}</span>
+          </div>
+        {% else %}
+          <span>0</span>
+          <span class="sr-only">{{ qname }} wall time: 0 hours</span>
+          {% if max_wall is not null %}
+            <span class="text-xs" style="color:#c0392b" aria-hidden="true">max {{ max_wall_label }}</span>
+          {% endif %}
+        {% endif %}
+      {% elseif metrics and metrics.wall_time is not null %}
+        {{ metrics.wall_time|number_format(1) }}
+        <span class="sr-only">hours</span>
+        {% if max_wall is not null %}
+          <span class="text-xs" style="color:#c0392b" aria-hidden="true"> · max {{ max_wall_label }}</span>
+        {% endif %}
+      {% else %}
+        <span class="text-dark-gray" aria-label="Not applicable">N/A</span>
+        {% if max_wall is not null %}
+          <span class="text-xs" style="color:#c0392b" aria-hidden="true">max {{ max_wall_label }}</span>
+        {% endif %}
+      {% endif %}
+    {% else %}
+      <span class="sr-only">See queue heading</span>
+    {% endif %}
+  </td>
+{% endif %}
+{% if col_jobs %}
+  <td class="py-2 text-right align-top{{ not show_metrics ? ' bg-light-gray' }}">
+    {% if show_metrics %}
+      {% if metrics and metrics.job_count is not null %}
+        {{ metrics.job_count|number_format(0) }}
+      {% else %}
+        <span class="text-dark-gray">N/A</span>
+      {% endif %}
+    {% else %}
+      <span class="sr-only">See queue heading</span>
+    {% endif %}
+  </td>
+{% endif %}

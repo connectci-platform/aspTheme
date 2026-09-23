@@ -163,11 +163,6 @@ table.views-table tr td {
   content: "";
   @apply z-10 absolute inset-0 bg-transparent pointer-events-auto;
 }
-.layout-content .block-views-exposed-filter-blockcssn-directory-page-1 .form-item-search-api-fulltext,
-.region-sidebar-first .form-item-items-per-page,
-.layout-sidebar-first .facets-reset .facet-item__count {
-  @apply hidden;
-}
 
 .cssn-photo {
   width: 110px;
@@ -214,6 +209,10 @@ body.page-node-6117:not(.user-logged-in) .layout__region--second {
   [data-drupal-selector="views-exposed-form-recurring-events-event-series-block-1"] {
     @apply hidden;
   }
+}
+
+#views-exposed-form-cssn-directory-page-1 .form-item, .form-actions {
+  @apply mt-0;
 }
 
 /* Announcment side titles */
@@ -464,6 +463,32 @@ html:has(body.page-node-type-access-active-resources-from-cid) {
   .rp-section-rule {
     @apply my-8 border-0;
     border-top: 3px solid #107180;
+  }
+
+  /* Queue specifications table: one <tbody class="rp-queue-group"> per queue.
+     A queue with several node types renders a heading row carrying the
+     queue-level metrics, then one indented hardware row per node type; a
+     one-node-type queue renders as a single row. The grouping is only legible
+     if the eye can find the group boundaries, so the rule below goes on the
+     first row of each group rather than on every row. */
+  .rp-queue-group + .rp-queue-group > tr:first-child > * {
+    border-top: 1px solid theme('colors.gray');
+  }
+
+  .rp-queue-group__heading > * {
+    @apply align-top;
+  }
+
+  /* Hardware rows sit under their queue name, so the first cell is empty (or
+     holds that row's own purpose) and indents to show the nesting. */
+  .rp-queue-group__row-label {
+    @apply pl-4 text-sm font-normal text-dark-gray;
+  }
+
+  /* Purpose reads as a caption under the queue name, not as a second heading:
+     it is the one part of the name cell that isn't the name. */
+  .rp-queue-group__purpose {
+    @apply mt-1 text-sm font-normal text-dark-gray;
   }
 
   /* H4s all-caps for visual rhythm */

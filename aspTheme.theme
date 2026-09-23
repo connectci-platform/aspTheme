@@ -7,6 +7,7 @@
 
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Markup;
+use Drupal\operations_cider\Service\QueueSpecGrouper;
 
 /**
  * Implements hook_form_BASE_FORM_ID_alter() for \Drupal\node\NodeForm.
@@ -244,6 +245,32 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
     }
   }
 
+  // Group the queue-spec paragraphs by queue name for the table.
+  //
+  // The paragraphs are one row per queue-and-hardware pair, but the metrics
+  // above are per queue, so a queue with several node types would repeat its
+  // wait/wall/job numbers on every row and read as several queues. Grouping
+  // happens in PHP rather than Twig because "same value on every row" is
+  // awkward to express in a template and worth a unit test of its own.
+  //
+  // field_rp_queue_specs_items stays in place: the template still walks it to
+  // decide which optional columns have data anywhere in the table.
+  $queue_rows = [];
+  foreach ($variables['field_rp_queue_specs_items'] as $paragraph) {
+    // An empty field's ->value is NULL here but [] once Twig touches it, so
+    // flatten to scalars on this side and let the template compare plainly.
+    $max_wall = $paragraph->hasField('field_rp_max_wall_time')
+      ? $paragraph->get('field_rp_max_wall_time')->value
+      : NULL;
+    $queue_rows[] = [
+      'name' => (string) ($paragraph->get('field_rp_queue_name')->value ?? ''),
+      'purpose' => (string) ($paragraph->get('field_rp_queue_purpose')->value ?? ''),
+      'max_wall' => ($max_wall === NULL || $max_wall === '') ? NULL : (int) $max_wall,
+      'paragraph' => $paragraph,
+    ];
+  }
+  $variables['queue_groups'] = QueueSpecGrouper::group($queue_rows, $variables['queue_metrics']);
+
   // Resource slug for the embedded QA bot — uses the parent Group's
   // title if available, otherwise the resource's own display name. The
   // fallback must use the display name (short_name-aware), not the raw
@@ -366,6 +393,22 @@ function aspTheme_preprocess_views_view__rp_documentation_index(&$variables) {
  *
  * For resource_group rows, adds child resources to render as an inline table.
  */
+/**
+ * Trims a listing blurb at a word boundary instead of mid-word.
+ *
+ * Fallback for resources whose description has no summary: cut near 200
+ * characters at the last space so the blurb never ends mid-word.
+ */
+function _asptheme_rp_listing_trim(string $text): string {
+  $text = trim($text);
+  if (mb_strlen($text) <= 200) {
+    return $text;
+  }
+  $cut = mb_substr($text, 0, 200);
+  $space = mb_strrpos($cut, ' ');
+  return rtrim($space ? mb_substr($cut, 0, $space) : $cut, " \t.,;:") . '…';
+}
+
 function aspTheme_preprocess_views_view_fields__rp_documentation_index(&$variables) {
   $row = $variables['row'];
   $node = $row->_entity ?? NULL;
@@ -387,19 +430,20 @@ function aspTheme_preprocess_views_view_fields__rp_documentation_index(&$variabl
           $description = check_markup($field->summary, $field->format);
         }
         else {
-          $text = strip_tags($field->processed);
-          $description = mb_strlen($text) > 200 ? mb_substr($text, 0, 200) . '...' : $text;
+          $description = _asptheme_rp_listing_trim(strip_tags($field->processed));
         }
       }
-      $short = $resource->hasField('field_cider_short_name') && !$resource->get('field_cider_short_name')->isEmpty()
-        ? $resource->get('field_cider_short_name')->value
-        : NULL;
       $resources[] = [
-        'title' => $short ?: $resource->label(),
+        'title' => $resource->label(),
         'url' => \Drupal::service('path_alias.manager')->getAliasByPath('/node/' . $resource->id()),
         'description' => $description,
       ];
     }
+    // Members render in field_cider_resources delta order, which is
+    // arbitrary; sort them by the name the row displays so a group's
+    // resources read alphabetically (matches the listing-wide displayed-name
+    // sort in operations_cider_views_pre_render()).
+    usort($resources, fn($a, $b) => strcasecmp($a['title'], $b['title']));
     $variables['rp_group_resources'] = $resources;
 
     // Provide slug and node ID for anchor links and ARA banner.
@@ -418,15 +462,11 @@ function aspTheme_preprocess_views_view_fields__rp_documentation_index(&$variabl
         $description = check_markup($field->summary, $field->format);
       }
       else {
-        $text = strip_tags($field->processed);
-        $description = mb_strlen($text) > 200 ? mb_substr($text, 0, 200) . '...' : $text;
+        $description = _asptheme_rp_listing_trim(strip_tags($field->processed));
       }
     }
-    $short = $node->hasField('field_cider_short_name') && !$node->get('field_cider_short_name')->isEmpty()
-      ? $node->get('field_cider_short_name')->value
-      : NULL;
     $variables['rp_individual_resource'] = [
-      'title' => $short ?: $node->label(),
+      'title' => $node->label(),
       'url' => \Drupal::service('path_alias.manager')->getAliasByPath('/node/' . $node->id()),
       'description' => $description,
     ];
@@ -453,15 +493,11 @@ function aspTheme_preprocess_node__resource_group(&$variables) {
           $description = check_markup($field->summary, $field->format);
         }
         else {
-          $text = strip_tags($field->processed);
-          $description = mb_strlen($text) > 200 ? mb_substr($text, 0, 200) . '...' : $text;
+          $description = _asptheme_rp_listing_trim(strip_tags($field->processed));
         }
       }
-      $short = $resource->hasField('field_cider_short_name') && !$resource->get('field_cider_short_name')->isEmpty()
-        ? $resource->get('field_cider_short_name')->value
-        : NULL;
       $resources[] = [
-        'title' => $short ?: $resource->label(),
+        'title' => $resource->label(),
         'url' => \Drupal::service('path_alias.manager')->getAliasByPath('/node/' . $resource->id()),
         'description' => $description,
       ];
