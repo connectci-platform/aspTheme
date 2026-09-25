@@ -410,9 +410,6 @@ form.node-match-engagement-form {
   ul {
     @apply list-none p-0 m-0 flex flex-wrap;
   }
-  ul li {
-    @apply border hover--border-black border-dark-teal ms-0 me-2 px-2 py-0 my-1;
-  }
   ul li a {
     @apply hover--text-black text-dark-teal font-normal no-underline whitespace-nowrap;
   }
