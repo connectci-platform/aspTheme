@@ -334,6 +334,14 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
   // User-specific cache context (each user sees their own panel data;
   // anonymous traffic shares a single cache entry).
   $variables['#cache']['contexts'][] = 'user';
+
+  // ARA recommendation banner, js/rp-ara-banner.js: an ?ara_data= payload is
+  // only used when its global_resource_id matches this resource.
+  $variables['#attached']['drupalSettings']['aspTheme']['ara'] = [
+    'globalResourceId' => $node->hasField('field_access_global_resource_id')
+      ? trim((string) $node->get('field_access_global_resource_id')->value)
+      : '',
+  ];
 }
 
 /**

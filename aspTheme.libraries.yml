@@ -36,6 +36,9 @@ node:
   version: 1.x
   js:
     js/rp-account-panel.js: {}
+    js/rp-ara-banner.js: {}
+  dependencies:
+    - core/drupalSettings
 
 software-table:
   version: 1.x
