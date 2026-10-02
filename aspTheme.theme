@@ -7,6 +7,7 @@
 
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Render\Markup;
+use Drupal\operations_cider\QueueMetricsFreshness;
 use Drupal\operations_cider\Service\QueueSpecGrouper;
 
 /**
@@ -243,6 +244,18 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
       $variables['queue_metrics'] = $decoded['queues'];
       $variables['queue_metrics_updated'] = $decoded['updated'] ?? NULL;
     }
+  }
+
+  // A nightly refresh that has silently stopped leaves old figures looking
+  // current, so past the freshness threshold drop the metrics. Emptying the
+  // map hides the metric columns and sparklines through the same path a
+  // resource with no metrics takes; queue_metrics_updated stays for the note.
+  $variables['queue_metrics_stale'] = QueueMetricsFreshness::isStale(
+    $variables['queue_metrics_updated'],
+    \Drupal::time()->getRequestTime()
+  );
+  if ($variables['queue_metrics_stale']) {
+    $variables['queue_metrics'] = [];
   }
 
   // Group the queue-spec paragraphs by queue name for the table.
