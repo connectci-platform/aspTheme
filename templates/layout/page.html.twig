@@ -121,6 +121,8 @@
 		{% endif %}
 			{{ page.content }}
 		</div>{# /.layout-content #}
+		{# Full-width region after the main content, outside the .container wrapper. #}
+		{{ page.below_content }}
 
 		{% if sidebar_second %}
 			<aside class="layout-sidebar-second md--mx-auto prose" role="complementary">
