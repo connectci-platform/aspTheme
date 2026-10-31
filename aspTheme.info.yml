@@ -25,6 +25,7 @@ regions:
   cta: 'Call-to-Action'
   title_banner: 'Page Title Banner'
   content: 'Main content'
+  below_content: 'Below main content (full width)'
   sidebar_first: 'Sidebar first'
   sidebar_second: 'Sidebar second'
   footer: Footer
