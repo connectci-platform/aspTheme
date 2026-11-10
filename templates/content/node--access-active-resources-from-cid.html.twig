@@ -364,8 +364,8 @@
           {% if v is not null and v != '' %}{% set col_ram = true %}{% endif %}
           {% set v = paragraph.field_rp_max_wall_time.value %}{% if v is iterable %}{% set v = v|first %}{% endif %}
           {% if v is not empty %}{% set col_max_wall = true %}{% endif %}
-          {% if qm and (qm.wait_time is not null or qm.daily_wait|default([])|length > 0) %}{% set col_wait = true %}{% endif %}
-          {% if qm and (qm.wall_time is not null or qm.daily_wall|default([])|length > 0) %}{% set col_wall = true %}{% endif %}
+          {% if qm and (qm.wait_time is not null or qm.daily_wait|default([])|filter(v => v is not null)|length > 0) %}{% set col_wait = true %}{% endif %}
+          {% if qm and (qm.wall_time is not null or qm.daily_wall|default([])|filter(v => v is not null)|length > 0) %}{% set col_wall = true %}{% endif %}
           {% if qm and qm.job_count is not null %}{% set col_jobs = true %}{% endif %}
         {% endif %}
       {% endfor %}
@@ -383,7 +383,7 @@
         </h3>
           {% if queue_metrics_updated %}
             <p class="text-xs text-dark-gray mb-2">
-              {% if queue_metrics_stale %}Queue metrics unavailable since {{ queue_metrics_updated }}.{% else %}Metrics updated {{ queue_metrics_updated }}{% endif %}
+              {% if queue_metrics_stale %}Queue metrics unavailable since {{ queue_metrics_updated }}.{% else %}Data through {{ queue_metrics_updated }}{% endif %}
             </p>
           {% endif %}
           {# Clamp the queue list to N rows with a More/Less toggle. The wrapper
