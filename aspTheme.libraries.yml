@@ -8,6 +8,7 @@ base:
       build/tippy.css: {}
       build/main.css: {}
       build/ckeditor5.css: {}
+      src/css/admin-navigation.css: {}
       //cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css: { type: external, minified: true }
       //fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,70,400;0,100,400;0,100,600;0,100,800;1,100,400&display=swap: {type: external}
 

@@ -41,28 +41,34 @@
     <js-placeholder token="{{ placeholder_token }}">
   </head>
   <body{{ attributes.addClass(body_classes) }}>
-
-    <nav role="navigation" aria-label="{{ 'Primary menu'|t }}">
-      <a href="#main-content" class="visually-hidden focusable skip-link">
-        {{ 'Skip to main content'|t }}
-      </a>
-
-      <div id="universal-menus"></div>
-      <div id="header"></div>
-      <div id="site-menus"></div>
-    </nav>
-
     {#
       Keyboard navigation/accessibility link to main content section in
       page.html.twig.
     #}
+    <a href="#main-content" class="visually-hidden focusable skip-link">
+      {{ 'Skip to main content'|t }}
+    </a>
+
+    {# Printed before the header so the environment indicator and core
+       Navigation render above the site header. #}
     {{ page_top }}
-    {{ page }}
-    {{ page_bottom }}
-    <footer>
-      <div id="footer-menus"></div>
-      <div id="footer"></div>
-    </footer>
+
+    {# Wraps everything after page_top so core Navigation's fixed sidebar and
+       top bar offset the whole layout, not just the main canvas. #}
+    <div class="asp-page-shell">
+      <nav role="navigation" aria-label="{{ 'Primary menu'|t }}">
+        <div id="universal-menus"></div>
+        <div id="header"></div>
+        <div id="site-menus"></div>
+      </nav>
+
+      {{ page }}
+      {{ page_bottom }}
+      <footer>
+        <div id="footer-menus"></div>
+        <div id="footer"></div>
+      </footer>
+    </div>
     <div id="qa-bot"></div>
     <js-bottom-placeholder token="{{ placeholder_token }}">
   </body>
