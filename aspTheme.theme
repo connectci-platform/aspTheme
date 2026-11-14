@@ -238,12 +238,18 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
   // Parse queue metrics JSON and build a lookup keyed by queue name.
   $variables['queue_metrics'] = [];
   $variables['queue_metrics_updated'] = NULL;
+  $variables['queue_metrics_data_through'] = FALSE;
   if ($node->hasField('field_rp_queue_metrics') && !$node->get('field_rp_queue_metrics')->isEmpty()) {
     $json = $node->get('field_rp_queue_metrics')->value;
     $decoded = json_decode($json, TRUE);
     if (is_array($decoded) && !empty($decoded['queues'])) {
       $variables['queue_metrics'] = $decoded['queues'];
-      $variables['queue_metrics_updated'] = $decoded['updated'] ?? NULL;
+      // Freshness and the note's date use the latest data date when the blob
+      // has a valid one, else the fetch date (legacy blobs, or a run whose
+      // timeseries requests failed). The label says which one it is.
+      $freshness = QueueMetricsFreshness::freshnessDate($decoded);
+      $variables['queue_metrics_updated'] = $freshness['date'];
+      $variables['queue_metrics_data_through'] = $freshness['label'] === QueueMetricsFreshness::LABEL_DATA_THROUGH;
     }
   }
 
