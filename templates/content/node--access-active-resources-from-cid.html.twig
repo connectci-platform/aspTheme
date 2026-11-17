@@ -103,7 +103,9 @@
   {% set has_login = field_rp_ssh_login_nodes_items|length > 0 or ondemand_url %}
   {% set has_file_transfer = field_rp_file_transfer_items|length > 0 %}
   {% set has_storage = field_rp_storage_items|length > 0 or external_storage %}
-  {% set has_jobs = field_rp_queue_specs_items|length > 0 or node.field_rp_jobs_info.value %}
+  {# node_types counts too: a cloud resource can document node types and have
+     no queues. #}
+  {% set has_jobs = field_rp_queue_specs_items|length > 0 or node_types|length > 0 or node.field_rp_jobs_info.value %}
   {# One definition for both the jump-to nav link and the Software section
      itself. They used to be hand-maintained copies of the same condition
      and had drifted: nodes with only an SDS list, only an OnDemand list,
@@ -311,7 +313,7 @@
 
   {# ========== Jobs / Queue Specifications (full width) ========== #}
   {% set jobs_info = node.field_rp_jobs_info.value %}
-  {% if field_rp_queue_specs_items|length > 0 or jobs_info %}
+  {% if has_jobs %}
     <div id="rp-jobs" class="rp-queue-specs mb-8">
       {# Optional link to the RP's own job submission documentation. #}
       {% set submitting_jobs_link = node.field_rp_submitting_jobs.0 %}
@@ -331,6 +333,17 @@
           {{ expandable_text(node.field_rp_jobs_info.processed, 3) }}
         </div>
       {% endif %}
+      {% if node_types|length > 0 %}
+        {# Node-type model: hardware once per node type, queues reference them. #}
+        {% include '@aspTheme/content/rp-node-types-table.html.twig' with {node_types: node_types} only %}
+        {% include '@aspTheme/content/rp-queues-table.html.twig' with {
+          queues: queues,
+          queue_spec_link: node.field_rp_queue_spec_link.0,
+          queue_metrics: queue_metrics,
+          queue_metrics_updated: queue_metrics_updated,
+          queue_metrics_stale: queue_metrics_stale,
+        } only %}
+      {% else %}
       {# Only render if at least one queue has a name, otherwise the heading
          and column headers show above an empty body. #}
       {# The same pass also flags which optional columns have data in at least
@@ -507,6 +520,7 @@
           </div>{# /.expandable-text__content #}
           </div>{# /.expandable-text #}
           {% endif %}
+      {% endif %}{# /node_types #}
         </div>
       {% endif %}
 
