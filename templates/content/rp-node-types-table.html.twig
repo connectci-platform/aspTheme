@@ -1,0 +1,59 @@
+{#
+/**
+ * @file
+ * "Node types" table: one row per hardware configuration on the resource.
+ *
+ * Available variables:
+ * - node_types: rows built in aspTheme.theme (label, anchor, description,
+ *   node_count, cpu, cores, ram, gpus). Values are plain strings/ints; Twig
+ *   autoescapes them. The description goes through nl2br after escaping.
+ */
+#}
+{% set col_nodes = false %}
+{% set col_cpu = false %}
+{% set col_ram = false %}
+{% set col_gpu = false %}
+{% for t in node_types %}
+  {% if t.node_count %}{% set col_nodes = true %}{% endif %}
+  {% if t.cpu or t.cores %}{% set col_cpu = true %}{% endif %}
+  {% if t.ram %}{% set col_ram = true %}{% endif %}
+  {% if t.gpus %}{% set col_gpu = true %}{% endif %}
+{% endfor %}
+<h3 id="rp-node-types">Node types</h3>
+<div class="overflow-x-auto mb-6">
+  <table class="w-full border-collapse">
+    <thead>
+      <tr>
+        <th class="text-left py-2 pr-4 font-semibold align-bottom">Node type</th>
+        {% if col_nodes %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Num nodes</th>{% endif %}
+        {% if col_cpu %}<th class="text-left py-2 pr-4 font-semibold align-bottom">CPU cores / node</th>{% endif %}
+        {% if col_ram %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Node RAM</th>{% endif %}
+        {% if col_gpu %}<th class="text-left py-2 font-semibold align-bottom">GPUs / node</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for t in node_types %}
+        <tr id="{{ t.anchor }}">
+          <th scope="row" class="text-left py-2 pr-4 font-semibold align-top">
+            {{ t.label }}
+            {% if t.description %}<div class="rp-queue-group__purpose">{{ t.description|nl2br }}</div>{% endif %}
+          </th>
+          {% if col_nodes %}
+            <td class="py-2 pr-4 align-top">{% if t.node_count %}{{ t.node_count|number_format }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}</td>
+          {% endif %}
+          {% if col_cpu %}
+            <td class="py-2 pr-4 align-top">
+              {% if t.cpu or t.cores %}{{ t.cpu }}{% if t.cores %} ({{ t.cores }} cores){% endif %}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}
+            </td>
+          {% endif %}
+          {% if col_ram %}
+            <td class="py-2 pr-4 align-top">{% if t.ram %}{{ t.ram }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}</td>
+          {% endif %}
+          {% if col_gpu %}
+            <td class="py-2 align-top">{% if t.gpus %}{{ t.gpus }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}</td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

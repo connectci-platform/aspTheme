@@ -1,0 +1,110 @@
+{#
+/**
+ * @file
+ * "Queues" table for resources on the node-type model: one row per queue.
+ *
+ * Available variables:
+ * - queues: rows built in aspTheme.theme (name, purpose, max_wall minutes,
+ *   metrics or NULL, node_types: [{label, anchor|NULL, count|NULL}]).
+ * - queue_spec_link, queue_metrics, queue_metrics_updated,
+ *   queue_metrics_stale: as in the grouped table.
+ */
+#}
+{% import '@aspTheme/content/rp-fmt.html.twig' as fmt %}
+{% set col_max_wall = false %}
+{% set col_wait = false %}
+{% set col_wall = false %}
+{% set col_jobs = false %}
+{% for q in queues %}
+  {% if q.max_wall %}{% set col_max_wall = true %}{% endif %}
+  {% set qm = q.metrics %}
+  {% if qm and (qm.wait_time is not null or qm.daily_wait|default([])|length > 0) %}{% set col_wait = true %}{% endif %}
+  {% if qm and (qm.wall_time is not null or qm.daily_wall|default([])|length > 0) %}{% set col_wall = true %}{% endif %}
+  {% if qm and qm.job_count is not null %}{% set col_jobs = true %}{% endif %}
+{% endfor %}
+{% if queues|length > 0 %}
+  <h3>
+    Queues
+    {% if queue_spec_link.uri|default('') %}
+      <a href="{{ queue_spec_link.uri }}" class="no-underline text-dark-teal">
+        <span class="sr-only">Documentation</span>
+        <i class="bi bi-book text-md-teal"></i>
+      </a>
+    {% endif %}
+  </h3>
+  {% if queue_metrics_updated %}
+    <p class="text-xs text-dark-gray mb-2">
+      {% if queue_metrics_stale %}Queue metrics unavailable since {{ queue_metrics_updated }}.{% else %}Metrics updated {{ queue_metrics_updated }}{% endif %}
+    </p>
+  {% endif %}
+  {{ attach_library('expandable_text/expandable_text') }}
+  <div class="expandable-text" data-rows="{{ min(queues|length, 4) }}">
+  <div class="expandable-text__content" id="rp-queue-specs-content">
+  <div class="overflow-x-auto">
+    <table class="w-full border-collapse">
+      <thead>
+        <tr>
+          <th class="text-left py-2 pr-4 font-semibold align-bottom">Queue</th>
+          {% if col_max_wall %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Max wallclock</th>{% endif %}
+          <th class="text-left py-2 pr-4 font-semibold align-bottom">Node types</th>
+          {% if col_wait %}
+            <th class="text-left py-2 pr-4 font-semibold align-bottom">Wait time
+              <div class="font-normal text-xs text-dark-gray">30-day trend</div>
+            </th>
+          {% endif %}
+          {% if col_wall %}
+            <th class="text-left py-2 pr-4 font-semibold align-bottom">Wall time
+              <div class="font-normal text-xs text-dark-gray">30-day trend</div>
+            </th>
+          {% endif %}
+          {% if col_jobs %}
+            <th class="text-right py-2 font-semibold align-bottom">Number of jobs run
+              <div class="font-normal text-xs text-dark-gray">30 days</div>
+            </th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody class="rp-queue-group">
+        {% for q in queues %}
+          <tr>
+            <th scope="row" class="text-left py-2 pr-4 font-semibold align-top">
+              {{ q.name }}
+              {% if q.purpose %}<div class="rp-queue-group__purpose">{{ q.purpose }}</div>{% endif %}
+            </th>
+            {% if col_max_wall %}
+              <td class="py-2 pr-4 align-top">
+                {% if q.max_wall %}{{ fmt.wall_label(q.max_wall)|trim }}{% else %}<span class="text-dark-gray" aria-label="Not applicable">N/A</span>{% endif %}
+              </td>
+            {% endif %}
+            <td class="py-2 pr-4 align-top">
+              {% for n in q.node_types %}
+                {% if n.anchor %}<a href="#{{ n.anchor }}">{{ n.label }}</a>{% else %}{{ n.label }}{% endif %}{% if n.count %} <span class="text-dark-gray">({{ n.count|number_format }} nodes)</span>{% endif %}{% if not loop.last %}<br>{% endif %}
+              {% else %}
+                <span class="text-dark-gray">N/A</span>
+              {% endfor %}
+            </td>
+            {% include '@aspTheme/content/rp-queue-cells.html.twig' with {
+              col_cpu: false,
+              col_gpu: false,
+              col_nodes: false,
+              col_ram: false,
+              col_max_wall: false,
+              col_wait: col_wait,
+              col_wall: col_wall,
+              col_jobs: col_jobs,
+              show_hardware: false,
+              show_metrics: true,
+              paragraph: null,
+              metrics: q.metrics,
+              limit_min: q.max_wall,
+              qname: q.name,
+              idx: loop.index,
+            } only %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  </div>{# /.expandable-text__content #}
+  </div>{# /.expandable-text #}
+{% endif %}
