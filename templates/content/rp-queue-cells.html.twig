@@ -124,13 +124,16 @@
 {% if col_wait %}
   <td class="py-2 pr-4 align-top{{ not show_metrics ? ' bg-light-gray' }}">
     {% if show_metrics %}
-      {% if metrics and metrics.daily_wait|default([])|length > 1 %}
-        {% set vals = metrics.daily_wait %}
+      {# Null days (no jobs, or no wait data) are dropped from the range and the
+         drawn line. Twig would read null as 0, which would plot a false floor. #}
+      {% set vals = metrics ? metrics.daily_wait|default([]) : [] %}
+      {% set drawable = vals|filter(v => v is not null) %}
+      {% if metrics and drawable|length > 1 and metrics.wait_time is not null %}
         {% set avg = metrics.wait_time %}
-        {% set spark_max = vals|first %}
-        {% for v in vals %}{% if v > spark_max %}{% set spark_max = v %}{% endif %}{% endfor %}
+        {% set spark_max = drawable|first %}
+        {% for v in drawable %}{% if v > spark_max %}{% set spark_max = v %}{% endif %}{% endfor %}
         {% set spark_min = spark_max %}
-        {% for v in vals %}{% if v < spark_min %}{% set spark_min = v %}{% endif %}{% endfor %}
+        {% for v in drawable %}{% if v < spark_min %}{% set spark_min = v %}{% endif %}{% endfor %}
         {% if spark_max > 0 %}
           {% set avg_y = (30 - (avg / spark_max * 28))|round(1) %}
           {% set avg_y = avg_y < 2 ? 2 : (avg_y > 30 ? 30 : avg_y) %}
@@ -138,9 +141,10 @@
             <svg class="rp-sparkline" width="120" height="32" viewBox="0 0 120 32" role="img" focusable="false" aria-labelledby="wait-title-{{ idx }}">
               <title id="wait-title-{{ idx }}">{{ qname }} wait time: average {{ avg|number_format(1) }} hours, range {{ spark_min|round(1) }} to {{ spark_max|round(1) }} hours over 30 days</title>
               <line x1="1" y1="{{ avg_y }}" x2="112" y2="{{ avg_y }}" stroke="#999" stroke-width="0.75" stroke-dasharray="3,2" />
-              {# Number below the chart (matches the Wall Time cell) so it never overlaps in the small SVG. #}
+              {# Number below the chart (matches the Wall Time cell) so it never overlaps in the small SVG.
+                 x uses the full list index so a gap keeps its place in time. #}
               <polyline fill="none" stroke="#107180" stroke-width="1.5"
-                points="{% for v in vals %}{{ (loop.index0 / (vals|length - 1) * 110 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
+                points="{% for v in vals %}{% if v is not null %}{{ (loop.index0 / (vals|length - 1) * 110 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }} {% endif %}{% endfor %}" />
             </svg>
             <span class="text-xs text-dark-gray" aria-hidden="true">{{ spark_min|round(1) }}–{{ spark_max|round(1) }} hrs · avg {{ avg|number_format(1) }}</span>
           </div>
@@ -162,13 +166,14 @@
 {% if col_wall %}
   <td class="py-2 pr-4 align-top{{ not show_metrics ? ' bg-light-gray' }}">
     {% if show_metrics %}
-      {% if metrics and metrics.daily_wall|default([])|length > 1 %}
-        {% set vals = metrics.daily_wall %}
+      {% set vals = metrics ? metrics.daily_wall|default([]) : [] %}
+      {% set drawable = vals|filter(v => v is not null) %}
+      {% if metrics and drawable|length > 1 and metrics.wall_time is not null %}
         {% set avg = metrics.wall_time %}
-        {% set spark_max = vals|first %}
-        {% for v in vals %}{% if v > spark_max %}{% set spark_max = v %}{% endif %}{% endfor %}
+        {% set spark_max = drawable|first %}
+        {% for v in drawable %}{% if v > spark_max %}{% set spark_max = v %}{% endif %}{% endfor %}
         {% set spark_min = spark_max %}
-        {% for v in vals %}{% if v < spark_min %}{% set spark_min = v %}{% endif %}{% endfor %}
+        {% for v in drawable %}{% if v < spark_min %}{% set spark_min = v %}{% endif %}{% endfor %}
         {% if spark_max > 0 %}
           {% set avg_y = (30 - (avg / spark_max * 28))|round(1) %}
           {% set avg_y = avg_y < 2 ? 2 : (avg_y > 30 ? 30 : avg_y) %}
@@ -188,7 +193,7 @@
               {% endif %}
               {# Reference lines only in the chart; avg extends full-width now that its label moved below. #}
               <polyline fill="none" stroke="#107180" stroke-width="1.5"
-                points="{% for v in vals %}{{ (loop.index0 / (vals|length - 1) * 110 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
+                points="{% for v in vals %}{% if v is not null %}{{ (loop.index0 / (vals|length - 1) * 110 + 1)|round(1) }},{{ (30 - (v / spark_max * 28))|round(1) }} {% endif %}{% endfor %}" />
             </svg>
             {# All numbers render below the chart so nothing overlaps in the small SVG. #}
             <span class="text-xs text-dark-gray" aria-hidden="true">{{ spark_min|round(1) }}–{{ spark_max|round(1) }} hrs · avg {{ avg|number_format(1) }}{% if max_wall is not null %} · limit {{ max_wall_label }}{% endif %}</span>
