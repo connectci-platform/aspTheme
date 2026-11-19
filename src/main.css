@@ -10,6 +10,18 @@
 
 @tailwind utilities;
 
+/* Site-specific content: shared markup (views headers, blocks) wrapped in a
+   site's body class only shows on that site. Matches nect-theme and
+   campus-champions-theme. */
+body:not(.ccmnet) .ccmnet,
+body:not(.campus-champions) .campus-champions,
+body:not(.open-ondemand) .open-ondemand,
+body:not(.pa-science) .pa-science,
+body:not(.careers-cyberteam) .careers-cyberteam,
+body:not(.northeast-cyberteam) .northeast-cyberteam {
+  display: none !important;
+}
+
 @layer base {
   :root {
     --dark-teal: #1A5B6E;
