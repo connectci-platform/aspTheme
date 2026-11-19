@@ -318,6 +318,11 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
       $value = is_string($value) ? trim($value) : $value;
       return ($value === NULL || $value === '') ? NULL : $value;
     };
+    // Allowed-value label for a list_string field, falling back to the key.
+    $option_label = function ($paragraph, string $field, string $key): string {
+      $allowed = $paragraph->getFieldDefinition($field)->getFieldStorageDefinition()->getSetting('allowed_values') ?? [];
+      return (string) ($allowed[$key] ?? $key);
+    };
     // Same convention as the gb_size macro in rp-fmt.html.twig.
     $gb = fn($v) => ($v === NULL || (int) $v <= 0) ? NULL : (((int) $v % 1000 === 0) ? ((int) $v / 1000) . ' TB' : (int) $v . ' GB');
 
@@ -328,6 +333,7 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
     }
     $anchors = [];
     $anchor_by_label = [];
+    $links_by_queue = [];
     foreach ($variables['field_rp_node_types_items'] as $type_paragraph) {
       $label = (string) ($scalar($type_paragraph, 'field_rp_node_type_label') ?? '');
       if ($label === '') {
@@ -342,32 +348,53 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
       // The first node type with a label owns it for queue links.
       $anchor_by_label[$label] ??= $anchor;
 
-      $gpu_parts = [];
-      foreach ($load_children($type_paragraph, 'field_rp_node_gpus') as $gpu) {
-        $model = (string) ($scalar($gpu, 'field_rp_gpus') ?? '');
-        if ($model === '') {
+      $accelerators = [];
+      foreach ($load_children($type_paragraph, 'field_rp_accelerators') as $accel) {
+        $type = (string) ($scalar($accel, 'field_rp_accelerator_type') ?? 'gpu');
+        $model = (string) ($scalar($accel, 'field_rp_accelerator_model') ?? '');
+        $count = $scalar($accel, 'field_rp_accelerator_count');
+        $memory = $scalar($accel, 'field_rp_accelerator_memory');
+        if ($model === '' && ($count === NULL || (int) $count <= 0)) {
           continue;
         }
-        $count = $scalar($gpu, 'field_rp_gpu_count');
-        $vram = $scalar($gpu, 'field_rp_gpu_vram');
-        $part = ($count !== NULL && (int) $count > 0) ? (int) $count . '× ' . $model : $model;
-        if ($vram !== NULL && (int) $vram > 0) {
-          $part .= ' (' . (int) $vram . ' GB)';
-        }
-        $gpu_parts[] = $part;
+        $accelerators[] = [
+          'type' => $type,
+          'type_label' => $option_label($accel, 'field_rp_accelerator_type', $type),
+          'is_gpu' => $type === 'gpu',
+          'model' => $model,
+          'count' => ($count !== NULL && (int) $count > 0) ? (int) $count : NULL,
+          'memory' => ($memory !== NULL && (int) $memory > 0) ? (int) $memory : NULL,
+        ];
       }
       $node_count = $scalar($type_paragraph, 'field_rp_node_count');
       $cores = $scalar($type_paragraph, 'field_rp_cpu_count');
+      $arch = $scalar($type_paragraph, 'field_rp_cpu_architecture');
+      $ram = $scalar($type_paragraph, 'field_rp_node_ram');
       $variables['node_types'][] = [
         'label' => $label,
         'anchor' => $anchor,
         'description' => (string) ($scalar($type_paragraph, 'field_rp_node_type_description') ?? ''),
         'node_count' => ($node_count !== NULL && (int) $node_count > 0) ? (int) $node_count : NULL,
         'cpu' => $scalar($type_paragraph, 'field_rp_cpus'),
+        'architecture' => $arch === NULL ? NULL : $option_label($type_paragraph, 'field_rp_cpu_architecture', (string) $arch),
         'cores' => ($cores !== NULL && (int) $cores > 0) ? (int) $cores : NULL,
-        'ram' => $gb($scalar($type_paragraph, 'field_rp_vram')),
-        'gpus' => $gpu_parts ? implode(', ', $gpu_parts) : NULL,
+        'ram' => $gb($ram),
+        'accelerators' => $accelerators,
       ];
+
+      // Queue membership lives on the node type; index it by trimmed name.
+      foreach ($load_children($type_paragraph, 'field_rp_node_type_queues') as $tq) {
+        $tq_name = (string) ($scalar($tq, 'field_rp_queue_name') ?? '');
+        if ($tq_name === '') {
+          continue;
+        }
+        $tq_count = $scalar($tq, 'field_rp_node_count');
+        $links_by_queue[$tq_name][] = [
+          'label' => $label,
+          'anchor' => $anchor,
+          'count' => ($tq_count !== NULL && (int) $tq_count > 0) ? (int) $tq_count : NULL,
+        ];
+      }
     }
 
     foreach ($variables['field_rp_queue_specs_items'] as $queue_paragraph) {
@@ -376,25 +403,16 @@ function aspTheme_preprocess_node__access_active_resources_from_cid(&$variables)
         continue;
       }
       $wall = $scalar($queue_paragraph, 'field_rp_max_wall_time');
-      $links = [];
-      foreach ($load_children($queue_paragraph, 'field_rp_queue_nodes') as $queue_node) {
-        $label = (string) ($scalar($queue_node, 'field_rp_queue_node_type') ?? '');
-        if ($label === '') {
-          continue;
-        }
-        $count = $scalar($queue_node, 'field_rp_node_count');
-        $links[] = [
-          'label' => $label,
-          'anchor' => $anchor_by_label[$label] ?? NULL,
-          'count' => ($count !== NULL && (int) $count > 0) ? (int) $count : NULL,
-        ];
-      }
+      $charged = $scalar($queue_paragraph, 'field_rp_charged_per');
+      $access = $scalar($queue_paragraph, 'field_rp_queue_access');
       $variables['queues'][] = [
         'name' => $qname,
         'purpose' => (string) ($scalar($queue_paragraph, 'field_rp_queue_purpose') ?? ''),
         'max_wall' => $wall === NULL ? NULL : (int) $wall,
+        'charged_per' => $charged === NULL ? NULL : $option_label($queue_paragraph, 'field_rp_charged_per', (string) $charged),
+        'access' => $access === NULL ? NULL : $option_label($queue_paragraph, 'field_rp_queue_access', (string) $access),
         'metrics' => $variables['queue_metrics'][$qname] ?? NULL,
-        'node_types' => $links,
+        'node_types' => $links_by_queue[$qname] ?? [],
       ];
     }
   }

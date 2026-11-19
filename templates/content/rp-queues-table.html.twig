@@ -5,6 +5,7 @@
  *
  * Available variables:
  * - queues: rows built in aspTheme.theme (name, purpose, max_wall minutes,
+ *   charged_per and access (display labels),
  *   metrics or NULL, node_types: [{label, anchor|NULL, count|NULL}]).
  * - queue_spec_link, queue_metrics, queue_metrics_updated,
  *   queue_metrics_stale: as in the grouped table.
@@ -12,11 +13,15 @@
 #}
 {% import '@aspTheme/content/rp-fmt.html.twig' as fmt %}
 {% set col_max_wall = false %}
+{% set col_charged = false %}
+{% set col_access = false %}
 {% set col_wait = false %}
 {% set col_wall = false %}
 {% set col_jobs = false %}
 {% for q in queues %}
   {% if q.max_wall %}{% set col_max_wall = true %}{% endif %}
+  {% if q.charged_per %}{% set col_charged = true %}{% endif %}
+  {% if q.access %}{% set col_access = true %}{% endif %}
   {% set qm = q.metrics %}
   {% if qm and (qm.wait_time is not null or qm.daily_wait|default([])|length > 0) %}{% set col_wait = true %}{% endif %}
   {% if qm and (qm.wall_time is not null or qm.daily_wall|default([])|length > 0) %}{% set col_wall = true %}{% endif %}
@@ -46,6 +51,8 @@
         <tr>
           <th class="text-left py-2 pr-4 font-semibold align-bottom">Queue</th>
           {% if col_max_wall %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Max wallclock</th>{% endif %}
+          {% if col_charged %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Charged per</th>{% endif %}
+          {% if col_access %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Access</th>{% endif %}
           <th class="text-left py-2 pr-4 font-semibold align-bottom">Node types</th>
           {% if col_wait %}
             <th class="text-left py-2 pr-4 font-semibold align-bottom">Wait time
@@ -64,8 +71,10 @@
           {% endif %}
         </tr>
       </thead>
-      <tbody class="rp-queue-group">
+      {# One tbody per queue so the .rp-queue-group + .rp-queue-group rule draws
+         a border between queues. #}
         {% for q in queues %}
+          <tbody class="rp-queue-group">
           <tr>
             <th scope="row" class="text-left py-2 pr-4 font-semibold align-top">
               {{ q.name }}
@@ -75,6 +84,12 @@
               <td class="py-2 pr-4 align-top">
                 {% if q.max_wall %}{{ fmt.wall_label(q.max_wall)|trim }}{% else %}<span class="text-dark-gray" aria-label="Not applicable">N/A</span>{% endif %}
               </td>
+            {% endif %}
+            {% if col_charged %}
+              <td class="py-2 pr-4 align-top">{% if q.charged_per %}{{ q.charged_per }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}</td>
+            {% endif %}
+            {% if col_access %}
+              <td class="py-2 pr-4 align-top">{% if q.access %}{{ q.access }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}</td>
             {% endif %}
             <td class="py-2 pr-4 align-top">
               {% for n in q.node_types %}
@@ -101,8 +116,8 @@
               idx: loop.index,
             } only %}
           </tr>
+          </tbody>
         {% endfor %}
-      </tbody>
     </table>
   </div>
   </div>{# /.expandable-text__content #}

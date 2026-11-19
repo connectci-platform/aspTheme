@@ -5,19 +5,22 @@
  *
  * Available variables:
  * - node_types: rows built in aspTheme.theme (label, anchor, description,
- *   node_count, cpu, cores, ram, gpus). Values are plain strings/ints; Twig
+ *   node_count, cpu, architecture, cores, ram, accelerators: [{type_label,
+ *   is_gpu, model, count, memory}]). Values are plain strings/ints; Twig
  *   autoescapes them. The description goes through nl2br after escaping.
  */
 #}
 {% set col_nodes = false %}
 {% set col_cpu = false %}
 {% set col_ram = false %}
-{% set col_gpu = false %}
+{% set col_arch = false %}
+{% set col_accel = false %}
 {% for t in node_types %}
   {% if t.node_count %}{% set col_nodes = true %}{% endif %}
   {% if t.cpu or t.cores %}{% set col_cpu = true %}{% endif %}
   {% if t.ram %}{% set col_ram = true %}{% endif %}
-  {% if t.gpus %}{% set col_gpu = true %}{% endif %}
+  {% if t.architecture %}{% set col_arch = true %}{% endif %}
+  {% if t.accelerators|length > 0 %}{% set col_accel = true %}{% endif %}
 {% endfor %}
 <h3 id="rp-node-types">Node types</h3>
 <div class="overflow-x-auto mb-6">
@@ -27,8 +30,9 @@
         <th class="text-left py-2 pr-4 font-semibold align-bottom">Node type</th>
         {% if col_nodes %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Num nodes</th>{% endif %}
         {% if col_cpu %}<th class="text-left py-2 pr-4 font-semibold align-bottom">CPU cores / node</th>{% endif %}
+        {% if col_arch %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Architecture</th>{% endif %}
         {% if col_ram %}<th class="text-left py-2 pr-4 font-semibold align-bottom">Node RAM</th>{% endif %}
-        {% if col_gpu %}<th class="text-left py-2 font-semibold align-bottom">GPUs / node</th>{% endif %}
+        {% if col_accel %}<th class="text-left py-2 font-semibold align-bottom">Accelerators / node</th>{% endif %}
       </tr>
     </thead>
     <tbody>
@@ -46,11 +50,21 @@
               {% if t.cpu or t.cores %}{{ t.cpu }}{% if t.cores %} ({{ t.cores }} cores){% endif %}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}
             </td>
           {% endif %}
+          {% if col_arch %}
+            <td class="py-2 pr-4 align-top">{% if t.architecture %}{{ t.architecture }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}</td>
+          {% endif %}
           {% if col_ram %}
             <td class="py-2 pr-4 align-top">{% if t.ram %}{{ t.ram }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}</td>
           {% endif %}
-          {% if col_gpu %}
-            <td class="py-2 align-top">{% if t.gpus %}{{ t.gpus }}{% else %}<span class="text-dark-gray">N/A</span>{% endif %}</td>
+          {% if col_accel %}
+            <td class="py-2 align-top">
+              {% for a in t.accelerators %}
+                {# Memory is per device, so say "each": it must not read as node RAM. #}
+                {% if a.count %}{{ a.count }}× {% endif %}{{ a.model }}{% if not a.is_gpu %} ({{ a.type_label }}){% endif %}{% if a.memory %}, {{ a.memory }} GB {{ a.is_gpu ? 'vRAM' : 'memory' }} each{% endif %}{% if not loop.last %}<br>{% endif %}
+              {% else %}
+                <span class="text-dark-gray">N/A</span>
+              {% endfor %}
+            </td>
           {% endif %}
         </tr>
       {% endfor %}
